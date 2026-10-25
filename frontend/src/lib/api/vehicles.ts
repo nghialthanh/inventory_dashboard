@@ -1,6 +1,7 @@
 import {
   getData,
   getList,
+  patchJSON,
   postJSON,
   type ApiVehicle,
 } from "./client";
@@ -16,6 +17,12 @@ export type RecordVehicleInput = {
   vin: string;
   model_id: string;
   entered_on: string;
+};
+
+export type CorrectVehicleInput = {
+  vin?: string;
+  model_id?: string;
+  entered_on?: string;
 };
 
 export function listVehicles(query: VehicleListQuery) {
@@ -41,4 +48,14 @@ export function getVehicle(id: string): Promise<ApiVehicle> {
 
 export function createVehicle(input: RecordVehicleInput): Promise<ApiVehicle> {
   return postJSON<ApiVehicle>("/api/v1/vehicles", input);
+}
+
+export function correctVehicle(
+  id: string,
+  input: CorrectVehicleInput,
+): Promise<ApiVehicle> {
+  return patchJSON<ApiVehicle>(
+    `/api/v1/vehicles/${encodeURIComponent(id)}`,
+    input,
+  );
 }

@@ -267,6 +267,138 @@ func TestAgingOnlyFilterAndInventoryAgeBoundaries(t *testing.T) {
 	assertAPIError(t, request(t, srv, http.MethodGet, "/api/v1/vehicles?aging=yes"), http.StatusBadRequest, "VALIDATION_ERROR")
 }
 
+func TestCorrectingAnInStockVehicleKeepsItsAddress(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-26")
+
+	rec := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{
+		"vin": " 2hgfg3b54gh123456 ",
+		"model_id": "`+f150ID+`",
+		"entered_on": "2026-07-27"
+	}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("correct status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	corrected := decodeVehicle(t, rec.Body.Bytes())
+	assertCorrected(t, corrected, created.ID)
+
+	view := request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID)
+	if view.Code != http.StatusOK {
+		t.Fatalf("view status = %d, body = %s", view.Code, view.Body.String())
+	}
+	assertCorrected(t, decodeVehicle(t, view.Body.Bytes()), created.ID)
+}
+
+func assertCorrected(t *testing.T, body vehicleBody, id string) {
+	t.Helper()
+	v := body.Data
+	if body.Message != "ok" || v.ID != id {
+		t.Fatalf("address = %s message = %q, want %s and ok", v.ID, body.Message, id)
+	}
+	if v.VIN != secondVIN || v.Make.Name != "Ford" || v.Model.Name != "F-150" {
+		t.Fatalf("identity = %s %s %s, want %s Ford F-150", v.VIN, v.Make.Name, v.Model.Name, secondVIN)
+	}
+	if v.EnteredOn != "2026-07-27" || v.StockedOutOn != nil || v.StockState != "in_stock" || v.InventoryAge != 91 || !v.IsAging {
+		t.Fatalf("stay = entered %s state %s age %d aging %v, want 2026-07-27 in_stock 91 true", v.EnteredOn, v.StockState, v.InventoryAge, v.IsAging)
+	}
+	if v.ProposedAction != nil || v.HasPrimaryImage {
+		t.Fatalf("proposed_action = %v has_primary_image = %v, want unchanged empty values", v.ProposedAction, v.HasPrimaryImage)
+	}
+}
+
+func TestCorrectionKeepsASubsetAndRejectsOtherCommands(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-01")
+
+	onlyVIN := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"vin":" `+secondVIN+` "}`)
+	if onlyVIN.Code != http.StatusOK {
+		t.Fatalf("vin correction status = %d, body = %s", onlyVIN.Code, onlyVIN.Body.String())
+	}
+	vinOnly := decodeVehicle(t, onlyVIN.Body.Bytes()).Data
+	if vinOnly.ID != created.ID || vinOnly.VIN != secondVIN || vinOnly.Model.Name != "Civic" || vinOnly.EnteredOn != "2026-10-01" {
+		t.Fatalf("vin-only correction = %+v", vinOnly)
+	}
+
+	onlyModel := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"model_id":"`+f150ID+`"}`)
+	if onlyModel.Code != http.StatusOK {
+		t.Fatalf("model correction status = %d, body = %s", onlyModel.Code, onlyModel.Body.String())
+	}
+	modelOnly := decodeVehicle(t, onlyModel.Body.Bytes()).Data
+	if modelOnly.ID != created.ID || modelOnly.VIN != secondVIN || modelOnly.Make.Name != "Ford" || modelOnly.Model.Name != "F-150" || modelOnly.EnteredOn != "2026-10-01" {
+		t.Fatalf("model-only correction = %+v", modelOnly)
+	}
+
+	onlyEntered := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"entered_on":"2026-07-28"}`)
+	if onlyEntered.Code != http.StatusOK {
+		t.Fatalf("entered-on correction status = %d, body = %s", onlyEntered.Code, onlyEntered.Body.String())
+	}
+	enteredOnly := decodeVehicle(t, onlyEntered.Body.Bytes()).Data
+	if enteredOnly.ID != created.ID || enteredOnly.VIN != secondVIN || enteredOnly.Model.Name != "F-150" || enteredOnly.EnteredOn != "2026-07-28" || enteredOnly.InventoryAge != 90 || enteredOnly.IsAging || enteredOnly.StockState != "in_stock" {
+		t.Fatalf("entered-on-only correction = %+v", enteredOnly)
+	}
+
+	mixed := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{
+		"entered_on": "2026-07-28",
+		"proposed_action": "hold",
+		"stocked_out_on": "2026-10-01",
+		"has_primary_image": true
+	}`)
+	assertAPIError(t, mixed, http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{}`), http.StatusBadRequest, "VALIDATION_ERROR")
+
+	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
+	if kept.ID != created.ID || kept.VIN != secondVIN || kept.EnteredOn != "2026-07-28" || kept.Model.Name != "F-150" {
+		t.Fatalf("vehicle changed after a rejected correction: %+v", kept)
+	}
+	if kept.StockedOutOn != nil || kept.ProposedAction != nil || kept.HasPrimaryImage || kept.StockState != "in_stock" {
+		t.Fatalf("forbidden fields changed: %+v", kept)
+	}
+}
+
+func TestCorrectedVINStaysUniqueAndEnteredOnCannotBeAfterToday(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	pool := testCatalogDB(t)
+	if err := database.Migrate(ctx, pool); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `TRUNCATE vehicles`); err != nil {
+		t.Fatalf("truncate vehicles: %v", err)
+	}
+	const stayedID = "55555555-5555-4555-8555-555555555506"
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO vehicles (id, vin, model_id, entered_on, stocked_out_on)
+		VALUES ($1, $2, $3, DATE '2026-07-01', DATE '2026-07-11')
+	`, stayedID, thirdVIN, civicID); err != nil {
+		t.Fatalf("insert stocked-out vehicle: %v", err)
+	}
+	catalogRepo := repositories.NewCatalog(pool)
+	srv := routes.New(routes.Config{
+		Catalog:  catalog.New(catalogRepo),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
+	})
+	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-26")
+	recordVehicle(t, srv, secondVIN, f150ID, "2026-10-02")
+
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"entered_on":"2026-10-27"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"vin":"1HGCM82633A00435I"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"model_id":"33333333-3333-4333-8333-333333333333"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"vin":"`+secondVIN+`"}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"vin":"`+thirdVIN+`"}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+stayedID, `{"vin":"JH4KA4650MC123456"}`), http.StatusConflict, "CONFLICT")
+
+	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
+	if kept.VIN != civicVIN || kept.EnteredOn != "2026-10-26" || kept.Model.ID != civicID || kept.StockState != "in_stock" {
+		t.Fatalf("in-stock vehicle changed after rejected corrections: %+v", kept)
+	}
+	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+stayedID).Body.Bytes()).Data
+	if stayed.VIN != thirdVIN || stayed.StockState != "stocked_out" || stayed.InventoryAge != 10 || stayed.IsAging {
+		t.Fatalf("stocked-out vehicle changed: %+v", stayed)
+	}
+}
+
 func TestMakeAndModelFilters(t *testing.T) {
 	srv := vehicleServer(t, time.Date(2026, 10, 26, 0, 0, 0, 0, time.UTC))
 	ford := recordVehicle(t, srv, civicVIN, f150ID, "2026-10-01")

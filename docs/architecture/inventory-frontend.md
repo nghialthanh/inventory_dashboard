@@ -20,6 +20,7 @@ The inventory list is the workspace. Create, correct, stock-out, proposed action
 | Component | Role |
 |-----------|------|
 | `InventoryFilters` | Make, model, aging, stock state |
+| `CorrectVehicleDialog` | Correct VIN, model, and entered on while in stock |
 | `VehicleTable` or `VehicleCards` | List, with aging emphasis |
 | `AgingBadge` | Driven by `is_aging` |
 | `ProposedActionControl` | Proposed-action command |

@@ -61,6 +61,65 @@ func (v *Vehicles) RecordVehicle(ctx context.Context, vin, modelID, enteredOn st
 	return v.GetVehicle(ctx, id)
 }
 
+// CorrectVehicle changes a non-empty subset of VIN, model, and entered on.
+func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin, modelID, enteredOn *string) (models.Vehicle, error) {
+	if v.repo == nil {
+		return models.Vehicle{}, fmt.Errorf("vehicles are not configured")
+	}
+	parsed, err := ParseVehicleID(id)
+	if err != nil {
+		return models.Vehicle{}, err
+	}
+	stored, err := v.repo.Get(ctx, parsed)
+	if err != nil {
+		return models.Vehicle{}, err
+	}
+	if stored.StockedOutOn != nil {
+		return models.Vehicle{}, &apperrors.WithMessage{
+			Err:     apperrors.ErrConflict,
+			Message: "A stocked-out vehicle cannot be corrected.",
+		}
+	}
+	var nextVIN, nextModelID *string
+	var nextEntered *time.Time
+	if vin != nil {
+		normalized, err := NormalizeVIN(*vin)
+		if err != nil {
+			return models.Vehicle{}, err
+		}
+		nextVIN = &normalized
+	}
+	if modelID != nil {
+		parsedModel, err := ParseModelID(*modelID)
+		if err != nil {
+			return models.Vehicle{}, err
+		}
+		if _, ok, err := v.modelMakeID(ctx, parsedModel); err != nil {
+			return models.Vehicle{}, err
+		} else if !ok {
+			return models.Vehicle{}, &apperrors.WithMessage{
+				Err:     apperrors.ErrValidation,
+				Message: "Choose a model from the catalog.",
+			}
+		}
+		nextModelID = &parsedModel
+	}
+	if enteredOn != nil {
+		entered, err := ParseEnteredOn(*enteredOn, v.today())
+		if err != nil {
+			return models.Vehicle{}, err
+		}
+		nextEntered = &entered
+	}
+	if nextVIN == nil && nextModelID == nil && nextEntered == nil {
+		return models.Vehicle{}, apperrors.ErrValidation
+	}
+	if err := v.repo.Correct(ctx, parsed, nextVIN, nextModelID, nextEntered); err != nil {
+		return models.Vehicle{}, err
+	}
+	return v.GetVehicle(ctx, parsed)
+}
+
 // GetVehicle returns one vehicle by its address.
 func (v *Vehicles) GetVehicle(ctx context.Context, id string) (models.Vehicle, error) {
 	if v.repo == nil {

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -31,6 +32,40 @@ func RecordVehicle(vehicles services.Vehicles) echo.HandlerFunc {
 			return mapError(c, err)
 		}
 		return dto.Success(c, http.StatusCreated, vehicle)
+	}
+}
+
+type correctVehicleRequest struct {
+	VIN       *string `json:"vin"`
+	ModelID   *string `json:"model_id"`
+	EnteredOn *string `json:"entered_on"`
+}
+
+func bindCorrection(c echo.Context) (correctVehicleRequest, error) {
+	decoder := json.NewDecoder(c.Request().Body)
+	decoder.DisallowUnknownFields()
+	var req correctVehicleRequest
+	if err := decoder.Decode(&req); err != nil {
+		return correctVehicleRequest{}, apperrors.ErrValidation
+	}
+	return req, nil
+}
+
+// CorrectVehicle is PATCH /api/v1/vehicles/:id.
+func CorrectVehicle(vehicles services.Vehicles) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if vehicles == nil {
+			return mapError(c, errNotConfigured("vehicles"))
+		}
+		req, err := bindCorrection(c)
+		if err != nil {
+			return mapError(c, err)
+		}
+		vehicle, err := vehicles.CorrectVehicle(c.Request().Context(), c.Param("id"), req.VIN, req.ModelID, req.EnteredOn)
+		if err != nil {
+			return mapError(c, err)
+		}
+		return dto.Success(c, http.StatusOK, vehicle)
 	}
 }
 

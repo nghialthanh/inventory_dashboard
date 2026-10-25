@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { ApiMeta, ApiVehicle } from "../../lib/api/client";
 import { useVehicle } from "../../lib/data";
 import { AgingBadge } from "./AgingBadge";
+import { CorrectVehicleDialog } from "./CorrectVehicleDialog";
 
 function stockStateLabel(state: ApiVehicle["stock_state"]): string {
   return state === "in_stock" ? "In stock" : "Stocked out";
@@ -172,49 +173,52 @@ function VehicleView({ id }: { id: string }) {
   }
   const row = vehicle.data;
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
-      <div>
-        <dt className="text-[#4e463c]">VIN</dt>
-        <dd>{row.vin}</dd>
-      </div>
-      <div>
-        <dt className="text-[#4e463c]">Make</dt>
-        <dd>{row.make.name}</dd>
-      </div>
-      <div>
-        <dt className="text-[#4e463c]">Model</dt>
-        <dd>{row.model.name}</dd>
-      </div>
-      <div>
-        <dt className="text-[#4e463c]">Entered on</dt>
-        <dd>{row.entered_on}</dd>
-      </div>
-      <div>
-        <dt className="text-[#4e463c]">Stocked-out on</dt>
-        <dd>{row.stocked_out_on ?? ""}</dd>
-      </div>
-      <div>
-        <dt className="text-[#4e463c]">Stock state</dt>
-        <dd>{stockStateLabel(row.stock_state)}</dd>
-      </div>
-      <div>
-        <dt className="text-[#4e463c]">Inventory age</dt>
-        <dd>{row.inventory_age}</dd>
-      </div>
-      <div>
-        <dt className="text-[#4e463c]">Aging stock</dt>
-        <dd>
-          <AgingBadge aging={row.is_aging} />
-        </dd>
-      </div>
-      <div>
-        <dt className="text-[#4e463c]">Proposed action</dt>
-        <dd>{row.proposed_action ?? "None"}</dd>
-      </div>
-      <div>
-        <dt className="text-[#4e463c]">Primary image</dt>
-        <dd>{row.has_primary_image ? "Yes" : "No primary image"}</dd>
-      </div>
-    </dl>
+    <div>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+        <div>
+          <dt className="text-[#4e463c]">VIN</dt>
+          <dd>{row.vin}</dd>
+        </div>
+        <div>
+          <dt className="text-[#4e463c]">Make</dt>
+          <dd>{row.make.name}</dd>
+        </div>
+        <div>
+          <dt className="text-[#4e463c]">Model</dt>
+          <dd>{row.model.name}</dd>
+        </div>
+        <div>
+          <dt className="text-[#4e463c]">Entered on</dt>
+          <dd>{row.entered_on}</dd>
+        </div>
+        <div>
+          <dt className="text-[#4e463c]">Stocked-out on</dt>
+          <dd>{row.stocked_out_on ?? ""}</dd>
+        </div>
+        <div>
+          <dt className="text-[#4e463c]">Stock state</dt>
+          <dd>{stockStateLabel(row.stock_state)}</dd>
+        </div>
+        <div>
+          <dt className="text-[#4e463c]">Inventory age</dt>
+          <dd>{row.inventory_age}</dd>
+        </div>
+        <div>
+          <dt className="text-[#4e463c]">Aging stock</dt>
+          <dd>
+            <AgingBadge aging={row.is_aging} />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[#4e463c]">Proposed action</dt>
+          <dd>{row.proposed_action ?? "None"}</dd>
+        </div>
+        <div>
+          <dt className="text-[#4e463c]">Primary image</dt>
+          <dd>{row.has_primary_image ? "Yes" : "No primary image"}</dd>
+        </div>
+      </dl>
+      {row.stock_state === "in_stock" ? <CorrectVehicleDialog vehicle={row} /> : null}
+    </div>
   );
 }

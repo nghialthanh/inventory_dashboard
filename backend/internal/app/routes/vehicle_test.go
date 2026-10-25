@@ -139,7 +139,17 @@ func vehicleServer(t *testing.T, today time.Time) handler {
 
 func postJSON(t *testing.T, srv handler, path, raw string) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(raw))
+	return sendJSON(t, srv, http.MethodPost, path, raw)
+}
+
+func patchJSON(t *testing.T, srv handler, path, raw string) *httptest.ResponseRecorder {
+	t.Helper()
+	return sendJSON(t, srv, http.MethodPatch, path, raw)
+}
+
+func sendJSON(t *testing.T, srv handler, method, path, raw string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, path, bytes.NewBufferString(raw))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)

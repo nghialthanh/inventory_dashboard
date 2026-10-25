@@ -30,14 +30,37 @@ func (v *Vehicles) Insert(ctx context.Context, id, vin, modelID string, enteredO
 		INSERT INTO vehicles (id, vin, model_id, entered_on)
 		VALUES ($1, $2, $3, $4)
 	`, id, vin, modelID, enteredOn)
+	return vinConflict(err)
+}
+
+// Correct changes the VIN, model, or entered on of one vehicle.
+func (v *Vehicles) Correct(ctx context.Context, id string, vin, modelID *string, enteredOn *time.Time) error {
+	tag, err := v.pool.Exec(ctx, `
+		UPDATE vehicles
+		SET vin = COALESCE($2, vin),
+			model_id = COALESCE($3, model_id),
+			entered_on = COALESCE($4, entered_on),
+			updated_at = now()
+		WHERE id = $1 AND stocked_out_on IS NULL
+	`, id, vin, modelID, enteredOn)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return &apperrors.WithMessage{Err: apperrors.ErrConflict, Message: "VIN is already used"}
-		}
-		return err
+		return vinConflict(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return apperrors.ErrNotFound
 	}
 	return nil
+}
+
+func vinConflict(err error) error {
+	if err == nil {
+		return nil
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return &apperrors.WithMessage{Err: apperrors.ErrConflict, Message: "VIN is already used"}
+	}
+	return err
 }
 
 const vehicleSelect = `

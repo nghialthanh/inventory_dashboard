@@ -2,9 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { listMakes, listModels } from "./api/catalog";
 import {
+  correctVehicle,
   createVehicle,
   getVehicle,
   listVehicles,
+  type CorrectVehicleInput,
   type RecordVehicleInput,
   type VehicleListQuery,
 } from "./api/vehicles";
@@ -37,6 +39,16 @@ export function useVehicle(id: string) {
     queryFn: () => getVehicle(id),
     enabled: id !== "",
     retry: false,
+  });
+}
+
+export function useCorrectVehicle(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CorrectVehicleInput) => correctVehicle(id, input),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["vehicles"] });
+    },
   });
 }
 

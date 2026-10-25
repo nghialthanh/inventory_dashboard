@@ -79,6 +79,16 @@ export async function getData<T>(path: string): Promise<T> {
   return body.data;
 }
 
+export async function patchJSON<T>(path: string, payload: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await readEnvelope<T>(response);
+  return body.data;
+}
+
 export async function postJSON<T>(path: string, payload: unknown): Promise<T> {
   const response = await fetch(path, {
     method: "POST",
