@@ -8,24 +8,23 @@ import (
 	"inventory_dashboard/internal/services"
 )
 
-// Config is the HTTP shell. An empty StaticDir serves the API only.
+// Config is the HTTP adapter. An empty StaticDir serves the API only.
+// Health, Catalog, and Vehicles are service interfaces implemented by logic.
 type Config struct {
 	StaticDir string
-	Services  *services.Services
+	Health    services.Health
+	Catalog   services.Catalog
+	Vehicles  services.Vehicles
 }
 
 // New builds the HTTP server. GET /health is registered outside /api/v1.
 func New(cfg Config) *echo.Echo {
-	if cfg.Services == nil {
-		cfg.Services = services.New(services.Deps{})
-	}
-
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
 
-	e.GET("/health", handlers.Health(cfg.Services))
-	v1.Register(e.Group("/api/v1"), cfg.Services)
+	e.GET("/health", handlers.Health(cfg.Health))
+	v1.Register(e.Group("/api/v1"), cfg.Catalog, cfg.Vehicles)
 	mountStatic(e, cfg.StaticDir)
 	return e
 }

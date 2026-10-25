@@ -11,15 +11,23 @@ import (
 
 // ListQuery is a parsed inventory list request.
 type ListQuery struct {
-	MakeID   string
-	ModelID  string
-	Page     int
-	PageSize int
+	MakeID    string
+	ModelID   string
+	AgingOnly bool
+	Page      int
+	PageSize  int
 }
 
 // ParseList applies paging defaults. Page size above 100 is capped at 100.
-func ParseList(makeID, modelID, pageRaw, sizeRaw string) (ListQuery, error) {
+// aging is omitted to leave the filter off. The only accepted value is true.
+func ParseList(makeID, modelID, aging, pageRaw, sizeRaw string) (ListQuery, error) {
 	query := ListQuery{Page: 1, PageSize: 20}
+	if trimmed := strings.TrimSpace(aging); trimmed != "" {
+		if trimmed != "true" {
+			return ListQuery{}, apperrors.ErrValidation
+		}
+		query.AgingOnly = true
+	}
 	if strings.TrimSpace(makeID) != "" {
 		if _, err := uuid.Parse(makeID); err != nil {
 			return ListQuery{}, apperrors.ErrValidation

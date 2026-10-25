@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"inventory_dashboard/internal/app/routes"
+	"inventory_dashboard/internal/logic/catalog"
+	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
-	"inventory_dashboard/internal/services"
 	"inventory_dashboard/pkg/database"
 )
 
@@ -136,12 +137,10 @@ func TestStockedOutStayStopsAgeAndKeepsTheVIN(t *testing.T) {
 		t.Fatalf("insert stocked-out vehicle: %v", err)
 	}
 
+	catalogRepo := repositories.NewCatalog(pool)
 	srv := routes.New(routes.Config{
-		Services: services.New(services.Deps{
-			Catalog:  repositories.NewCatalog(pool),
-			Vehicles: repositories.NewVehicles(pool),
-			Today:    func() time.Time { return today },
-		}),
+		Catalog:  catalog.New(catalogRepo),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
 	})
 	rec := request(t, srv, http.MethodGet, "/api/v1/vehicles/"+id)
 	if rec.Code != http.StatusOK {
@@ -212,6 +211,60 @@ func TestListOrderPagingAndEmptyInventory(t *testing.T) {
 	}
 	assertAPIError(t, request(t, srv, http.MethodGet, "/api/v1/vehicles?page=0"), http.StatusBadRequest, "VALIDATION_ERROR")
 	assertAPIError(t, request(t, srv, http.MethodGet, "/api/v1/vehicles?page_size=0"), http.StatusBadRequest, "VALIDATION_ERROR")
+}
+
+func TestAgingOnlyFilterAndInventoryAgeBoundaries(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	pool := testCatalogDB(t)
+	if err := database.Migrate(ctx, pool); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `TRUNCATE vehicles`); err != nil {
+		t.Fatalf("truncate vehicles: %v", err)
+	}
+	const stayedID = "55555555-5555-4555-8555-555555555505"
+	const stayedVIN = "5NPE24AF5FH123456"
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO vehicles (id, vin, model_id, entered_on, stocked_out_on)
+		VALUES ($1, $2, $3, DATE '2026-07-01', DATE '2026-10-10')
+	`, stayedID, stayedVIN, civicID); err != nil {
+		t.Fatalf("insert stocked-out vehicle: %v", err)
+	}
+	catalogRepo := repositories.NewCatalog(pool)
+	srv := routes.New(routes.Config{
+		Catalog:  catalog.New(catalogRepo),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
+	})
+
+	age0 := recordVehicle(t, srv, civicVIN, civicID, "2026-10-26")
+	age90 := recordVehicle(t, srv, secondVIN, f150ID, "2026-07-28")
+	age91 := recordVehicle(t, srv, thirdVIN, civicID, "2026-07-27")
+
+	all := listVehicles(t, srv, "")
+	if all.Meta.Total != 4 || len(all.Data) != 4 {
+		t.Fatalf("unfiltered total = %d len = %d, want 4 and 4", all.Meta.Total, len(all.Data))
+	}
+	if all.Data[0].ID != stayedID || all.Data[0].StockState != "stocked_out" || all.Data[0].InventoryAge != 101 || all.Data[0].IsAging {
+		t.Fatalf("stocked-out stay = %+v, want stocked_out age 101 not aging", all.Data[0])
+	}
+	if all.Data[1].ID != age91.ID || all.Data[1].StockState != "in_stock" || all.Data[1].InventoryAge != 91 || !all.Data[1].IsAging {
+		t.Fatalf("91 days = %+v, want in_stock aging stock", all.Data[1])
+	}
+	if all.Data[2].ID != age90.ID || all.Data[2].StockState != "in_stock" || all.Data[2].InventoryAge != 90 || all.Data[2].IsAging {
+		t.Fatalf("90 days = %+v, want in_stock and not aging", all.Data[2])
+	}
+	if all.Data[3].ID != age0.ID || all.Data[3].StockState != "in_stock" || all.Data[3].InventoryAge != 0 || all.Data[3].IsAging {
+		t.Fatalf("0 days = %+v, want in_stock and not aging", all.Data[3])
+	}
+
+	only := listVehicles(t, srv, "?aging=true")
+	if only.Meta.Total != 1 || len(only.Data) != 1 || only.Data[0].ID != age91.ID || only.Data[0].StockState != "in_stock" || !only.Data[0].IsAging {
+		t.Fatalf("aging only = total %d data %+v, want the 91-day vehicle", only.Meta.Total, only.Data)
+	}
+
+	assertAPIError(t, request(t, srv, http.MethodGet, "/api/v1/vehicles?aging=false"), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, request(t, srv, http.MethodGet, "/api/v1/vehicles?aging=yes"), http.StatusBadRequest, "VALIDATION_ERROR")
 }
 
 func TestMakeAndModelFilters(t *testing.T) {

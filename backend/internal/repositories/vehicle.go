@@ -24,19 +24,6 @@ func NewVehicles(pool *pgxpool.Pool) *Vehicles {
 	return &Vehicles{pool: pool}
 }
 
-// ModelMakeID returns the make that owns the model. ok is false when the model is unknown.
-func (v *Vehicles) ModelMakeID(ctx context.Context, modelID string) (string, bool, error) {
-	var makeID string
-	err := v.pool.QueryRow(ctx, `SELECT make_id::text FROM models WHERE id = $1`, modelID).Scan(&makeID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", false, nil
-	}
-	if err != nil {
-		return "", false, err
-	}
-	return makeID, true, nil
-}
-
 // Insert records an in-stock vehicle. A duplicate VIN is a conflict.
 func (v *Vehicles) Insert(ctx context.Context, id, vin, modelID string, enteredOn time.Time) error {
 	_, err := v.pool.Exec(ctx, `
@@ -76,10 +63,12 @@ func (v *Vehicles) Get(ctx context.Context, id string) (models.StoredVehicle, er
 
 // ListFilter narrows the inventory list.
 type ListFilter struct {
-	MakeID  string
-	ModelID string
-	Limit   int
-	Offset  int
+	MakeID        string
+	ModelID       string
+	AgingOnly     bool
+	EnteredBefore string
+	Limit         int
+	Offset        int
 }
 
 // List returns a page of vehicles ordered by entered on, then id, and the total.
@@ -126,6 +115,13 @@ func filterSQL(filter ListFilter) (string, []any) {
 	if filter.ModelID != "" {
 		args = append(args, filter.ModelID)
 		where += fmt.Sprintf(" AND md.id = $%d", len(args))
+	}
+	if filter.AgingOnly {
+		args = append(args, filter.EnteredBefore)
+		where += fmt.Sprintf(
+			" AND v.stocked_out_on IS NULL AND v.entered_on < $%d::date",
+			len(args),
+		)
 	}
 	return where, args
 }

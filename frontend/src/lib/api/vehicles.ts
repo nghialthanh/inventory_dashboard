@@ -8,6 +8,7 @@ import {
 export type VehicleListQuery = {
   makeId: string;
   modelId: string;
+  agingOnly: boolean;
   page: number;
 };
 
@@ -24,6 +25,9 @@ export function listVehicles(query: VehicleListQuery) {
   }
   if (query.modelId) {
     params.set("model_id", query.modelId);
+  }
+  if (query.agingOnly) {
+    params.set("aging", "true");
   }
   params.set("page", String(query.page));
   return getList<ApiVehicle>(`/api/v1/vehicles?${params.toString()}`).then(

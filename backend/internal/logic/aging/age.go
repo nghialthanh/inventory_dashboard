@@ -34,3 +34,9 @@ func StockState(stockedOutOn *time.Time) string {
 func IsAging(stockedOutOn *time.Time, inventoryAge int) bool {
 	return stockedOutOn == nil && inventoryAge > constant.AgingStockDays
 }
+
+// OldestInStockDay is the earliest entered-on date that is still not aging stock.
+// An in-stock vehicle entered before this day is aging stock. The list filter uses this bound.
+func OldestInStockDay(today time.Time) time.Time {
+	return UTCDate(today).AddDate(0, 0, -constant.AgingStockDays)
+}

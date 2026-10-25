@@ -10,9 +10,12 @@ import (
 )
 
 // Health is GET /health, outside /api/v1.
-func Health(svc *services.Services) echo.HandlerFunc {
+func Health(health services.Health) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if err := svc.Health(); err != nil {
+		if health == nil {
+			return dto.Success(c, http.StatusOK, map[string]any{})
+		}
+		if err := health.Health(); err != nil {
 			return mapError(c, err)
 		}
 		return dto.Success(c, http.StatusOK, map[string]any{})

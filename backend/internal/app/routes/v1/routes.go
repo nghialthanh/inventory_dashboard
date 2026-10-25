@@ -9,10 +9,10 @@ import (
 
 // Register mounts versioned inventory routes on /api/v1.
 // Health stays on the root router, outside this group.
-func Register(g *echo.Group, svc *services.Services) {
-	g.GET("/catalog/makes", handlers.ListMakes(svc))
-	g.GET("/catalog/models", handlers.ListModels(svc))
-	g.GET("/vehicles", handlers.ListVehicles(svc))
-	g.POST("/vehicles", handlers.RecordVehicle(svc))
-	g.GET("/vehicles/:id", handlers.GetVehicle(svc))
+func Register(g *echo.Group, catalog services.Catalog, vehicles services.Vehicles) {
+	g.GET("/catalog/makes", handlers.ListMakes(catalog))
+	g.GET("/catalog/models", handlers.ListModels(catalog))
+	g.GET("/vehicles", handlers.ListVehicles(vehicles))
+	g.POST("/vehicles", handlers.RecordVehicle(vehicles))
+	g.GET("/vehicles/:id", handlers.GetVehicle(vehicles))
 }

@@ -13,7 +13,7 @@ import (
 //go:embed sql/*.sql
 var migrationSQL embed.FS
 
-// Migrate applies the schema and the catalog seed. Statements are idempotent.
+// Migrate applies the schema, the catalog seed, and the demo vehicles. Statements are idempotent.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	entries, err := fs.ReadDir(migrationSQL, "sql")
 	if err != nil {

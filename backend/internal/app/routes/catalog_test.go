@@ -13,8 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"inventory_dashboard/internal/app/routes"
+	"inventory_dashboard/internal/logic/catalog"
 	"inventory_dashboard/internal/repositories"
-	"inventory_dashboard/internal/services"
 	"inventory_dashboard/pkg/database"
 )
 
@@ -171,7 +171,7 @@ func catalogServer(t *testing.T) handler {
 		t.Fatalf("reseed: %v", err)
 	}
 	return routes.New(routes.Config{
-		Services: services.New(services.Deps{Catalog: repositories.NewCatalog(pool)}),
+		Catalog: catalog.New(repositories.NewCatalog(pool)),
 	})
 }
 

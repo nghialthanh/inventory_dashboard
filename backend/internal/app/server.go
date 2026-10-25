@@ -13,8 +13,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"inventory_dashboard/internal/app/routes"
+	"inventory_dashboard/internal/logic/catalog"
+	"inventory_dashboard/internal/logic/health"
+	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
-	"inventory_dashboard/internal/services"
 	"inventory_dashboard/pkg/config"
 	"inventory_dashboard/pkg/database"
 	"inventory_dashboard/pkg/storage"
@@ -67,11 +69,13 @@ func Run(ctx context.Context) error {
 	application := &App{db: db, media: media}
 	defer application.Close()
 
-	svc := services.New(services.Deps{
-		Catalog:  repositories.NewCatalog(db),
-		Vehicles: repositories.NewVehicles(db),
+	catalogRepo := repositories.NewCatalog(db)
+	e := routes.New(routes.Config{
+		StaticDir: cfg.StaticDir,
+		Health:    health.New(),
+		Catalog:   catalog.New(catalogRepo),
+		Vehicles:  vehicle.New(repositories.NewVehicles(db), catalogRepo, nil),
 	})
-	e := routes.New(routes.Config{StaticDir: cfg.StaticDir, Services: svc})
 	e.Server.ReadHeaderTimeout = 5 * time.Second
 	slog.Info("inventory api listening", "addr", cfg.HTTPAddr, "bucket", application.media.Bucket())
 

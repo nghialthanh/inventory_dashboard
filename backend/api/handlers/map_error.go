@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -26,4 +27,8 @@ func mapError(c echo.Context, err error) error {
 	default:
 		return dto.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", message)
 	}
+}
+
+func errNotConfigured(name string) error {
+	return fmt.Errorf("%s is not configured", name)
 }

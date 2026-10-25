@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"inventory_dashboard/internal/app/routes"
+	"inventory_dashboard/internal/logic/catalog"
+	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
-	"inventory_dashboard/internal/services"
 	"inventory_dashboard/pkg/database"
 )
 
@@ -129,12 +130,10 @@ func vehicleServer(t *testing.T, today time.Time) handler {
 	if _, err := pool.Exec(ctx, `TRUNCATE vehicles`); err != nil {
 		t.Fatalf("truncate vehicles: %v", err)
 	}
+	catalogRepo := repositories.NewCatalog(pool)
 	return routes.New(routes.Config{
-		Services: services.New(services.Deps{
-			Catalog:  repositories.NewCatalog(pool),
-			Vehicles: repositories.NewVehicles(pool),
-			Today:    func() time.Time { return today },
-		}),
+		Catalog:  catalog.New(catalogRepo),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
 	})
 }
 

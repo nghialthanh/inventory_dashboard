@@ -3,15 +3,19 @@ import { useMakes, useModels } from "../../lib/data";
 type InventoryFiltersProps = {
   makeId: string;
   modelId: string;
+  agingOnly: boolean;
   onMakeId: (makeId: string) => void;
   onModelId: (modelId: string) => void;
+  onAgingOnly: (agingOnly: boolean) => void;
 };
 
 export function InventoryFilters({
   makeId,
   modelId,
+  agingOnly,
   onMakeId,
   onModelId,
+  onAgingOnly,
 }: InventoryFiltersProps) {
   const makes = useMakes();
   const models = useModels(makeId);
@@ -59,6 +63,15 @@ export function InventoryFilters({
             </option>
           ))}
         </select>
+      </label>
+      <label className="flex items-center gap-2 pb-2 text-sm text-[#4e463c]">
+        <input
+          type="checkbox"
+          className="size-4 accent-[#1c2b24]"
+          checked={agingOnly}
+          onChange={(event) => onAgingOnly(event.target.checked)}
+        />
+        Aging stock only
       </label>
       {failed ? (
         <p

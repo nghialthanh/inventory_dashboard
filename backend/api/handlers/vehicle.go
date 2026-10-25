@@ -17,13 +17,16 @@ type recordVehicleRequest struct {
 }
 
 // RecordVehicle is POST /api/v1/vehicles.
-func RecordVehicle(svc *services.Services) echo.HandlerFunc {
+func RecordVehicle(vehicles services.Vehicles) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if vehicles == nil {
+			return mapError(c, errNotConfigured("vehicles"))
+		}
 		var req recordVehicleRequest
 		if err := c.Bind(&req); err != nil {
 			return mapError(c, apperrors.ErrValidation)
 		}
-		vehicle, err := svc.RecordVehicle(c.Request().Context(), req.VIN, req.ModelID, req.EnteredOn)
+		vehicle, err := vehicles.RecordVehicle(c.Request().Context(), req.VIN, req.ModelID, req.EnteredOn)
 		if err != nil {
 			return mapError(c, err)
 		}
@@ -32,9 +35,12 @@ func RecordVehicle(svc *services.Services) echo.HandlerFunc {
 }
 
 // GetVehicle is GET /api/v1/vehicles/:id.
-func GetVehicle(svc *services.Services) echo.HandlerFunc {
+func GetVehicle(vehicles services.Vehicles) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		vehicle, err := svc.GetVehicle(c.Request().Context(), c.Param("id"))
+		if vehicles == nil {
+			return mapError(c, errNotConfigured("vehicles"))
+		}
+		vehicle, err := vehicles.GetVehicle(c.Request().Context(), c.Param("id"))
 		if err != nil {
 			return mapError(c, err)
 		}
@@ -43,12 +49,16 @@ func GetVehicle(svc *services.Services) echo.HandlerFunc {
 }
 
 // ListVehicles is GET /api/v1/vehicles.
-func ListVehicles(svc *services.Services) echo.HandlerFunc {
+func ListVehicles(vehicles services.Vehicles) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		page, err := svc.ListVehicles(
+		if vehicles == nil {
+			return mapError(c, errNotConfigured("vehicles"))
+		}
+		page, err := vehicles.ListVehicles(
 			c.Request().Context(),
 			c.QueryParam("make_id"),
 			c.QueryParam("model_id"),
+			c.QueryParam("aging"),
 			c.QueryParam("page"),
 			c.QueryParam("page_size"),
 		)

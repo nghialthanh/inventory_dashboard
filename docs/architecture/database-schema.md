@@ -67,7 +67,7 @@ Aging threshold constant: **90** (document in `constant` + tests).
 
 1. Migrate `makes`, `models`, `vehicles`.
 2. Seed a realistic make/model catalog for demo filters.
-3. Seed demo vehicles at inventory age 0, 90, and 91, plus one stocked-out vehicle whose stay was longer than 90 days.
+3. Seed demo vehicles from the UTC date at seed time: inventory age 0, 90, and 91, plus one stocked-out vehicle whose stay was longer than 90 days.
 
 ## MinIO
 

@@ -2,7 +2,9 @@ package repositories
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"inventory_dashboard/internal/models"
@@ -16,6 +18,22 @@ type Catalog struct {
 // NewCatalog binds the catalog to PostgreSQL.
 func NewCatalog(pool *pgxpool.Pool) *Catalog {
 	return &Catalog{pool: pool}
+}
+
+// ModelMakeID returns the make that owns the model. ok is false when the model is unknown.
+func (c *Catalog) ModelMakeID(ctx context.Context, modelID string) (string, bool, error) {
+	if c == nil || c.pool == nil {
+		return "", false, errors.New("catalog is not configured")
+	}
+	var makeID string
+	err := c.pool.QueryRow(ctx, `SELECT make_id::text FROM models WHERE id = $1`, modelID).Scan(&makeID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return makeID, true, nil
 }
 
 // ListMakes returns every make, ordered by name.

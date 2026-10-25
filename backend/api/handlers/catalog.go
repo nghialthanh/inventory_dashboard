@@ -10,9 +10,12 @@ import (
 )
 
 // ListMakes is GET /api/v1/catalog/makes.
-func ListMakes(svc *services.Services) echo.HandlerFunc {
+func ListMakes(catalog services.Catalog) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		makes, err := svc.ListMakes(c.Request().Context())
+		if catalog == nil {
+			return mapError(c, errNotConfigured("catalog"))
+		}
+		makes, err := catalog.ListMakes(c.Request().Context())
 		if err != nil {
 			return mapError(c, err)
 		}
@@ -21,9 +24,12 @@ func ListMakes(svc *services.Services) echo.HandlerFunc {
 }
 
 // ListModels is GET /api/v1/catalog/models.
-func ListModels(svc *services.Services) echo.HandlerFunc {
+func ListModels(catalog services.Catalog) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		list, err := svc.ListModels(c.Request().Context(), c.QueryParam("make_id"))
+		if catalog == nil {
+			return mapError(c, errNotConfigured("catalog"))
+		}
+		list, err := catalog.ListModels(c.Request().Context(), c.QueryParam("make_id"))
 		if err != nil {
 			return mapError(c, err)
 		}

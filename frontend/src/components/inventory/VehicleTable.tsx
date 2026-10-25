@@ -8,6 +8,16 @@ function stockStateLabel(state: ApiVehicle["stock_state"]): string {
   return state === "in_stock" ? "In stock" : "Stocked out";
 }
 
+function rowClass(vehicle: ApiVehicle): string | undefined {
+  if (vehicle.stock_state === "stocked_out") {
+    return "text-[#8a8175]";
+  }
+  if (vehicle.is_aging) {
+    return "bg-[#fbf6ee]";
+  }
+  return undefined;
+}
+
 type VehicleTableProps = {
   vehicles: ApiVehicle[];
   meta: ApiMeta;
@@ -117,10 +127,9 @@ function VehicleRows({
   open: boolean;
   onToggle: () => void;
 }) {
-  const stockedOut = vehicle.stock_state === "stocked_out";
   return (
     <>
-      <tr className={stockedOut ? "text-[#8a8175]" : undefined}>
+      <tr className={rowClass(vehicle)}>
         <td className="px-4 py-3">
           <button type="button" className="underline" onClick={onToggle}>
             {vehicle.vin}

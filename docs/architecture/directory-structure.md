@@ -25,6 +25,17 @@ inventory_dashboard/
 
 Go module: set in `go.mod` (e.g. `inventory_dashboard`).
 
+Adapters, logic, and repositories. `internal/services` holds the interfaces between them.
+
+| Layer | Where | Rule |
+|-------|--------|------|
+| Adapter | `api/` for HTTP. Events and third-party clients belong here too | Call `internal/services` interfaces. Do not import `logic` or `repositories` |
+| Services | `internal/services` | Declare the feature interfaces. No function bodies and no SQL |
+| Logic | `internal/logic` | Implement those interfaces. Feature rules live here |
+| Repository | `internal/repositories` | Feature queries and commands against PostgreSQL |
+
+`internal/app/server.go` is the composition root: it builds repositories, builds logic, and hands the logic to the adapter.
+
 ```
 backend/
 ├── main.go
@@ -34,7 +45,7 @@ backend/
 ├── config/
 │   ├── app.development.yaml
 │   └── example.yaml
-├── api/
+├── api/                                 # HTTP adapter
 │   ├── handlers/
 │   │   ├── catalog.go
 │   │   ├── vehicle.go
@@ -44,7 +55,7 @@ backend/
 │       └── …                            # auth only if assessment requires it
 ├── internal/
 │   ├── app/
-│   │   ├── server.go                    # RegisterServices + Run + static UI
+│   │   ├── server.go                    # wire repositories → logic → adapter
 │   │   └── routes/
 │   │       ├── router.go
 │   │       └── v1/
@@ -56,20 +67,23 @@ backend/
 │   ├── models/
 │   │   ├── catalog.go
 │   │   └── vehicle.go
-│   ├── repositories/
-│   │   ├── store.go
+│   ├── services/                        # feature interfaces only
+│   │   ├── health.go
 │   │   ├── catalog.go
-│   │   └── vehicle.go
-│   ├── logic/
+│   │   └── vehicles.go
+│   ├── logic/                           # implements services
 │   │   ├── catalog/
 │   │   ├── vehicle/                     # stock-out, patch rules, VIN
 │   │   ├── aging/                       # inventory age + is_aging
+│   │   ├── health/
 │   │   └── media/                       # MinIO put/get/delete
-│   └── services/                        # interfaces + registry
+│   ├── repositories/                    # SQL queries and commands
+│   │   ├── catalog.go
+│   │   └── vehicle.go
 ├── pkg/
 │   ├── config/
 │   ├── database/
-│   ├── storage/                         # MinIO client
+│   ├── storage/                         # MinIO client, used by a media adapter
 │   └── logger/
 └── …_test.go                            # beside packages
 ```
