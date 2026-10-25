@@ -54,8 +54,7 @@ backend/
 │   │   └── errors/
 │   ├── dto/
 │   ├── models/
-│   │   ├── make.go
-│   │   ├── model.go
+│   │   ├── catalog.go
 │   │   └── vehicle.go
 │   ├── repositories/
 │   │   ├── store.go

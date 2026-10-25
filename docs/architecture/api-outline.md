@@ -33,8 +33,8 @@ Read-only. Seed owns writes ([ADR-0002](../adr/0002-model-catalog.md)).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/catalog/makes` | `{ id, name }` |
-| GET | `/api/v1/catalog/models?make_id=` | Models. `make_id` is optional |
+| GET | `/api/v1/catalog/makes` | `{ id, name }`. **implemented** |
+| GET | `/api/v1/catalog/models?make_id=` | Models `{ id, make_id, name }`. `make_id` is optional. **implemented** |
 
 ## Vehicles
 

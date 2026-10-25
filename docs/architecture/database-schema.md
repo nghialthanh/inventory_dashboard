@@ -2,7 +2,7 @@
 
 PostgreSQL is the system of record. MinIO holds primary image bytes; Postgres stores only the object key ([ADR-0003](../adr/0003-primary-image-in-minio.md)).
 
-**Status:** planned — align migrations with this doc when scaffolding `backend/`.
+**Status:** `makes` and `models` are migrated and seeded. `vehicles` is not migrated yet.
 
 ## Tables
 
@@ -30,7 +30,7 @@ Daily use does not edit the catalog; missing models are added via seed ([ADR-000
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | UUID PK | Opaque API identity ([ADR-0006](../adr/0006-uuid-vehicle-identity.md)) |
-| `vin` | TEXT NOT NULL | Unique; never reused after stock-out ([ADR-0004](../adr/0004-stocked-out-is-terminal.md)) |
+| `vin` | TEXT NOT NULL | Unique across in-stock and stocked-out rows. Shape is in [api-outline.md](api-outline.md) ([ADR-0004](../adr/0004-stocked-out-is-terminal.md)) |
 | `model_id` | UUID NOT NULL FK → `models.id` | No free-text make/model |
 | `entered_on` | DATE NOT NULL | Inventory age starts here |
 | `stocked_out_on` | DATE NULL | NULL ⇒ in stock; set ⇒ stocked out ([ADR-0005](../adr/0005-stock-state-from-stocked-out-on.md)) |
@@ -39,16 +39,14 @@ Daily use does not edit the catalog; missing models are added via seed ([ADR-000
 | `created_at` | TIMESTAMPTZ | |
 | `updated_at` | TIMESTAMPTZ | |
 
-**Do not add** a `stock_state` column — derive it from `stocked_out_on`.
-
-Vehicles that leave inventory are retained ([ADR-0001](../adr/0001-retain-stocked-out-vehicles.md)). Prefer status/date lifecycle over hard delete.
+Derive stock state from `stocked_out_on`. Keep the row after stock-out ([ADR-0001](../adr/0001-retain-stocked-out-vehicles.md)). There is no delete-vehicle operation.
 
 ## Derived fields (API / logic, not columns)
 
 | Field | Definition |
 |-------|------------|
 | `stock_state` | `in_stock` if `stocked_out_on` IS NULL, else `stocked_out` |
-| `inventory_age` | Calendar days from `entered_on` to “today” (in stock) or to `stocked_out_on` (stocked out) |
+| `inventory_age` | Calendar days from `entered_on` to today while in stock, or to `stocked_out_on` when stocked out. The entered-on day is 0 |
 | `is_aging` | `stock_state = in_stock` AND `inventory_age > 90` |
 | `has_primary_image` | `primary_image_key IS NOT NULL` |
 
@@ -69,7 +67,7 @@ Aging threshold constant: **90** (document in `constant` + tests).
 
 1. Migrate `makes`, `models`, `vehicles`.
 2. Seed a realistic make/model catalog for demo filters.
-3. Optional demo vehicles spanning ages around the 90-day boundary for aging demos.
+3. Seed demo vehicles at inventory age 0, 90, and 91, plus one stocked-out vehicle whose stay was longer than 90 days.
 
 ## MinIO
 

@@ -1,3 +1,5 @@
+import { InventoryFilters } from "../components/inventory/InventoryFilters";
+
 export function InventoryPage() {
   return (
     <div className="min-h-screen bg-[#f3efe6] text-[#1c1915]">
@@ -16,6 +18,7 @@ export function InventoryPage() {
           Vehicles the dealership holds, including vehicles that have stocked
           out.
         </p>
+        <InventoryFilters />
         <section
           aria-label="Inventory list"
           className="mt-6 min-h-80 border border-[#e3dccf] bg-white shadow-[0_1px_0_rgba(28,25,21,0.04)]"

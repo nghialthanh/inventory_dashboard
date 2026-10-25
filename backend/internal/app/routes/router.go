@@ -17,7 +17,7 @@ type Config struct {
 // New builds the HTTP server. GET /health is registered outside /api/v1.
 func New(cfg Config) *echo.Echo {
 	if cfg.Services == nil {
-		cfg.Services = services.New()
+		cfg.Services = services.New(nil)
 	}
 
 	e := echo.New()
@@ -25,7 +25,7 @@ func New(cfg Config) *echo.Echo {
 	e.HidePort = true
 
 	e.GET("/health", handlers.Health(cfg.Services))
-	v1.Register(e.Group("/api/v1"))
+	v1.Register(e.Group("/api/v1"), cfg.Services)
 	mountStatic(e, cfg.StaticDir)
 	return e
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"inventory_dashboard/internal/app/routes"
+	"inventory_dashboard/internal/repositories"
 	"inventory_dashboard/internal/services"
 	"inventory_dashboard/pkg/config"
 	"inventory_dashboard/pkg/database"
@@ -43,6 +44,10 @@ func Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := database.Migrate(ctx, db); err != nil {
+		db.Close()
+		return err
+	}
 	media, err := storage.Open(storage.Settings{
 		Endpoint:  cfg.MinIOEndpoint,
 		AccessKey: cfg.MinIOAccessKey,
@@ -62,7 +67,7 @@ func Run(ctx context.Context) error {
 	application := &App{db: db, media: media}
 	defer application.Close()
 
-	svc := services.New()
+	svc := services.New(repositories.NewCatalog(db))
 	e := routes.New(routes.Config{StaticDir: cfg.StaticDir, Services: svc})
 	e.Server.ReadHeaderTimeout = 5 * time.Second
 	slog.Info("inventory api listening", "addr", cfg.HTTPAddr, "bucket", application.media.Bucket())
