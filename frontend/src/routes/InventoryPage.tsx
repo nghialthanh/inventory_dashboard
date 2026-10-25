@@ -1,32 +1,60 @@
+import { useState } from "react";
+
 import { InventoryFilters } from "../components/inventory/InventoryFilters";
+import { RecordVehicleDialog } from "../components/inventory/RecordVehicleDialog";
+import { VehicleTable } from "../components/inventory/VehicleTable";
+import { useVehicles } from "../lib/data";
 
 export function InventoryPage() {
+  const [makeId, setMakeId] = useState("");
+  const [modelId, setModelId] = useState("");
+  const [page, setPage] = useState(1);
+  const vehicles = useVehicles({ makeId, modelId, page });
+  const meta = vehicles.data?.meta ?? { page, page_size: 20, total: 0 };
+
   return (
     <div className="min-h-screen bg-[#f3efe6] text-[#1c1915]">
       <header className="border-b border-[#14201b] bg-[#1c2b24] text-[#f6f1e7]">
-        <div className="mx-auto flex max-w-5xl items-end justify-between px-6 py-6">
+        <div className="mx-auto flex max-w-7xl items-end justify-between px-6 py-6">
           <div>
             <p className="text-xs font-medium tracking-[0.22em] text-[#c8bba6] uppercase">
               Dashboard
             </p>
             <h1 className="mt-1 text-4xl leading-none">Inventory</h1>
           </div>
+          <RecordVehicleDialog />
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="mx-auto max-w-7xl px-6 py-8">
         <p className="max-w-xl text-[15px] leading-6 text-[#4e463c]">
           Vehicles the dealership holds, including vehicles that have stocked
           out.
         </p>
-        <InventoryFilters />
-        <section
-          aria-label="Inventory list"
-          className="mt-6 min-h-80 border border-[#e3dccf] bg-white shadow-[0_1px_0_rgba(28,25,21,0.04)]"
-        >
-          <div className="border-b border-[#efeae1] px-5 py-4">
-            <h2 className="text-xl">Inventory list</h2>
-          </div>
-        </section>
+        <InventoryFilters
+          makeId={makeId}
+          modelId={modelId}
+          onMakeId={(next) => {
+            setMakeId(next);
+            setModelId("");
+            setPage(1);
+          }}
+          onModelId={(next) => {
+            setModelId(next);
+            setPage(1);
+          }}
+        />
+        <VehicleTable
+          vehicles={vehicles.data?.vehicles ?? []}
+          meta={meta}
+          page={page}
+          loading={vehicles.isLoading}
+          failed={
+            vehicles.isError ||
+            vehicles.fetchStatus === "paused" ||
+            (vehicles.isPending && vehicles.fetchStatus === "idle")
+          }
+          onPage={setPage}
+        />
       </main>
     </div>
   );

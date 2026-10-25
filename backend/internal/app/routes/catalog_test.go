@@ -171,7 +171,7 @@ func catalogServer(t *testing.T) handler {
 		t.Fatalf("reseed: %v", err)
 	}
 	return routes.New(routes.Config{
-		Services: services.New(repositories.NewCatalog(pool)),
+		Services: services.New(services.Deps{Catalog: repositories.NewCatalog(pool)}),
 	})
 }
 

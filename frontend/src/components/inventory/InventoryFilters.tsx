@@ -1,16 +1,24 @@
-import { useState } from "react";
-
 import { useMakes, useModels } from "../../lib/data";
 
-export function InventoryFilters() {
-  const [makeId, setMakeId] = useState("");
-  const [modelId, setModelId] = useState("");
+type InventoryFiltersProps = {
+  makeId: string;
+  modelId: string;
+  onMakeId: (makeId: string) => void;
+  onModelId: (modelId: string) => void;
+};
+
+export function InventoryFilters({
+  makeId,
+  modelId,
+  onMakeId,
+  onModelId,
+}: InventoryFiltersProps) {
   const makes = useMakes();
   const models = useModels(makeId);
 
   function chooseMake(nextMakeId: string) {
-    setMakeId(nextMakeId);
-    setModelId("");
+    onMakeId(nextMakeId);
+    onModelId("");
   }
 
   const failed = makes.isError || models.isError;
@@ -42,7 +50,7 @@ export function InventoryFilters() {
           className="border border-[#d9d1c3] bg-white px-3 py-2 text-base text-[#1c1915]"
           value={modelId}
           disabled={models.isPending}
-          onChange={(event) => setModelId(event.target.value)}
+          onChange={(event) => onModelId(event.target.value)}
         >
           <option value="">All models</option>
           {(models.data ?? []).map((model) => (

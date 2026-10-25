@@ -67,7 +67,10 @@ func Run(ctx context.Context) error {
 	application := &App{db: db, media: media}
 	defer application.Close()
 
-	svc := services.New(repositories.NewCatalog(db))
+	svc := services.New(services.Deps{
+		Catalog:  repositories.NewCatalog(db),
+		Vehicles: repositories.NewVehicles(db),
+	})
 	e := routes.New(routes.Config{StaticDir: cfg.StaticDir, Services: svc})
 	e.Server.ReadHeaderTimeout = 5 * time.Second
 	slog.Info("inventory api listening", "addr", cfg.HTTPAddr, "bucket", application.media.Bucket())

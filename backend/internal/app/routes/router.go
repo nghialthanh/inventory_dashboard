@@ -17,7 +17,7 @@ type Config struct {
 // New builds the HTTP server. GET /health is registered outside /api/v1.
 func New(cfg Config) *echo.Echo {
 	if cfg.Services == nil {
-		cfg.Services = services.New(nil)
+		cfg.Services = services.New(services.Deps{})
 	}
 
 	e := echo.New()

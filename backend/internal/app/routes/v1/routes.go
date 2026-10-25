@@ -12,4 +12,7 @@ import (
 func Register(g *echo.Group, svc *services.Services) {
 	g.GET("/catalog/makes", handlers.ListMakes(svc))
 	g.GET("/catalog/models", handlers.ListModels(svc))
+	g.GET("/vehicles", handlers.ListVehicles(svc))
+	g.POST("/vehicles", handlers.RecordVehicle(svc))
+	g.GET("/vehicles/:id", handlers.GetVehicle(svc))
 }

@@ -1,6 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { listMakes, listModels } from "./api/catalog";
+import {
+  createVehicle,
+  getVehicle,
+  listVehicles,
+  type RecordVehicleInput,
+  type VehicleListQuery,
+} from "./api/vehicles";
 
 export function useMakes() {
   return useQuery({
@@ -13,5 +20,32 @@ export function useModels(makeId: string) {
   return useQuery({
     queryKey: ["catalog", "models", makeId],
     queryFn: () => listModels(makeId),
+  });
+}
+
+export function useVehicles(query: VehicleListQuery) {
+  return useQuery({
+    queryKey: ["vehicles", query],
+    queryFn: () => listVehicles(query),
+    retry: false,
+  });
+}
+
+export function useVehicle(id: string) {
+  return useQuery({
+    queryKey: ["vehicles", id],
+    queryFn: () => getVehicle(id),
+    enabled: id !== "",
+    retry: false,
+  });
+}
+
+export function useCreateVehicle() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: RecordVehicleInput) => createVehicle(input),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["vehicles"] });
+    },
   });
 }

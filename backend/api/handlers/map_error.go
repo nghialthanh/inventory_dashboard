@@ -11,14 +11,19 @@ import (
 )
 
 func mapError(c echo.Context, err error) error {
+	message := "error"
+	var with *apperrors.WithMessage
+	if errors.As(err, &with) && with.Message != "" {
+		message = with.Message
+	}
 	switch {
 	case errors.Is(err, apperrors.ErrValidation):
-		return dto.Error(c, http.StatusBadRequest, "VALIDATION_ERROR")
+		return dto.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", message)
 	case errors.Is(err, apperrors.ErrNotFound):
-		return dto.Error(c, http.StatusNotFound, "NOT_FOUND")
+		return dto.Error(c, http.StatusNotFound, "NOT_FOUND", message)
 	case errors.Is(err, apperrors.ErrConflict):
-		return dto.Error(c, http.StatusConflict, "CONFLICT")
+		return dto.Error(c, http.StatusConflict, "CONFLICT", message)
 	default:
-		return dto.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR")
+		return dto.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", message)
 	}
 }

@@ -1,0 +1,44 @@
+package models
+
+import "time"
+
+// Ref is an id and display name embedded on a vehicle.
+type Ref struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// Vehicle is the list and detail shape.
+type Vehicle struct {
+	ID              string  `json:"id"`
+	VIN             string  `json:"vin"`
+	Make            Ref     `json:"make"`
+	Model           Ref     `json:"model"`
+	EnteredOn       string  `json:"entered_on"`
+	StockedOutOn    *string `json:"stocked_out_on"`
+	StockState      string  `json:"stock_state"`
+	InventoryAge    int     `json:"inventory_age"`
+	IsAging         bool    `json:"is_aging"`
+	ProposedAction  *string `json:"proposed_action"`
+	HasPrimaryImage bool    `json:"has_primary_image"`
+}
+
+// StoredVehicle is a vehicle row before derived fields are applied.
+type StoredVehicle struct {
+	ID              string
+	VIN             string
+	Make            Ref
+	Model           Ref
+	EnteredOn       time.Time
+	StockedOutOn    *time.Time
+	ProposedAction  *string
+	HasPrimaryImage bool
+}
+
+// VehiclePage is one page of the inventory list.
+type VehiclePage struct {
+	Vehicles []Vehicle
+	Page     int
+	PageSize int
+	Total    int
+}

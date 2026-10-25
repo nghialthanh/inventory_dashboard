@@ -1,6 +1,10 @@
 package dto
 
-import "github.com/labstack/echo/v4"
+import (
+	"net/http"
+
+	"github.com/labstack/echo/v4"
+)
 
 // Envelope is the shared JSON body for /api/v1 and for /health.
 type Envelope struct {
@@ -29,11 +33,27 @@ func Success(c echo.Context, status int, data any) error {
 	})
 }
 
+// SuccessList writes the shared envelope with paging meta. A nil list is sent as an empty array.
+func SuccessList(c echo.Context, data any, meta Meta) error {
+	if data == nil {
+		data = []any{}
+	}
+	return c.JSON(http.StatusOK, Envelope{
+		Code:    http.StatusOK,
+		Message: "ok",
+		Data:    data,
+		Meta:    &meta,
+	})
+}
+
 // Error writes the shared envelope with an error_code in data.
-func Error(c echo.Context, status int, errorCode string) error {
+func Error(c echo.Context, status int, errorCode, message string) error {
+	if message == "" {
+		message = "error"
+	}
 	return c.JSON(status, Envelope{
 		Code:    status,
-		Message: "error",
+		Message: message,
 		Data:    map[string]any{"error_code": errorCode},
 	})
 }

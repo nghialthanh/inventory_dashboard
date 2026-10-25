@@ -62,7 +62,7 @@ List and detail share one shape, with embedded make and model:
 
 ### List
 
-`GET /api/v1/vehicles`
+`GET /api/v1/vehicles` — **implemented** for make, model, and paging. `stock_state`, `aging`, and `stocked_out_on` filters are not implemented yet.
 
 | Param | Meaning |
 |-------|---------|
@@ -78,11 +78,11 @@ Sort is `entered_on` ascending, then `id` ascending. A page past the end is an e
 
 ### Read
 
-`GET /api/v1/vehicles/:id`
+`GET /api/v1/vehicles/:id` — **implemented**
 
 ### Create
 
-`POST /api/v1/vehicles`
+`POST /api/v1/vehicles` — **implemented**
 
 ```json
 { "vin": "1HGCM82633A004352", "model_id": "…", "entered_on": "2026-01-10" }
