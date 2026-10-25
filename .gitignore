@@ -1,0 +1,6 @@
+.agents/*
+skills-lock.json
+initial-prompt.md
+node_modules/
+dist/
+frontend/dist/

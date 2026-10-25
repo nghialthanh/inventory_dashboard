@@ -15,6 +15,7 @@ inventory_dashboard/
 ├── .cursor/rules/                # Agent coding rules
 ├── backend/                      # Go API (+ serves static UI in Compose)
 ├── frontend/                     # React + TypeScript SPA
+├── minio/Dockerfile              # Private MinIO from the last published community binary
 └── docker-compose.yml            # Postgres + MinIO + API
 ```
 
@@ -74,7 +75,7 @@ backend/
 └── …_test.go                            # beside packages
 ```
 
-Static UI: multi-stage Docker build copies `frontend` dist into the API image; Echo (or chosen router) serves it beside `/api` ([ADR-0009](../adr/0009-one-origin-under-api.md)).
+Static UI: the image build copies the `frontend` dist into the API image. Echo serves it beside `/api` ([ADR-0009](../adr/0009-one-origin-under-api.md)).
 
 ---
 
@@ -98,14 +99,3 @@ frontend/
 │   └── styles.css
 └── …
 ```
-
----
-
-## Docs vs code
-
-| Concern | Location |
-|---------|----------|
-| Domain words | `GLOSSARY.md` |
-| Trade-offs | `docs/adr/*` |
-| How the system fits together | `docs/architecture/*` |
-| How agents must code | `.cursor/rules/*.mdc` |

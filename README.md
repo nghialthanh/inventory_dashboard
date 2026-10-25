@@ -10,46 +10,40 @@ Dealership **inventory dashboard** assessment: filter vehicles, identify **aging
 | Frontend | React + TypeScript |
 | Database | PostgreSQL |
 | Images | MinIO (private; streamed by API) |
-| Local run | Docker Compose — one origin |
+| Local run | Docker Compose — API and UI on port 8080 |
 
-## Domain language & decisions
+## Where to read
 
-- **Glossary:** [GLOSSARY.md](GLOSSARY.md) — use these words in code, API, UI, and docs.
-- **ADRs:** [docs/adr/](docs/adr/) — retain stocked-out vehicles, catalog make/model, MinIO primary image, terminal stocked-out, derived stock state, UUID identity, separate commands, API-streamed images, one-origin Compose.
-- **Architecture:** [docs/architecture/README.md](docs/architecture/README.md)
-
-## Cursor rules
-
-Project rules mirror the Homestay ops layout, adapted to this domain:
-
-| Rule | Role |
-|------|------|
-| `.cursor/rules/architecture.mdc` | Always-on modular monolith + glossary/ADR discipline |
-| `.cursor/rules/frontend-integration.mdc` | Always-on FE presentation SoT |
-| `.cursor/rules/backend.mdc` | Go handlers / logic / repositories |
-| `.cursor/rules/frontend.mdc` | React hooks / adapters |
-| `.cursor/rules/api.mdc` | `/api/v1` envelope + commands |
-| `.cursor/rules/database.mdc` | Postgres schema conventions |
-| `.cursor/rules/ui.mdc` | Dashboard UI patterns |
-| `.cursor/rules/testing.mdc` | Aging / VIN / stock-out tests |
-| `.cursor/rules/documentation.mdc` | Keep docs in sync |
-
-## Architecture docs
-
-| Doc | Contents |
-|-----|----------|
-| [docs/architecture/README.md](docs/architecture/README.md) | System context, domain, workflows |
-| [directory-structure.md](docs/architecture/directory-structure.md) | Repo layout |
-| [database-schema.md](docs/architecture/database-schema.md) | Tables & indexes |
-| [api-outline.md](docs/architecture/api-outline.md) | REST contract |
-| [frontend-integration.md](docs/architecture/frontend-integration.md) | FE-first integration |
-| [frontend-backend-mapping.md](docs/architecture/frontend-backend-mapping.md) | Page ↔ API ↔ hooks |
-| [inventory-frontend.md](docs/architecture/inventory-frontend.md) | UI stack notes |
+- **Words:** [GLOSSARY.md](GLOSSARY.md)
+- **Decisions:** [docs/adr/](docs/adr/) (0001–0009)
+- **System shape:** [docs/architecture/README.md](docs/architecture/README.md)
+- **Behavior:** [.scratch/inventory-dashboard/spec.md](.scratch/inventory-dashboard/spec.md)
+- **Agent entry:** [AGENTS.md](AGENTS.md)
+- **Cursor rules:** `.cursor/rules/`. `architecture.mdc` and `frontend-integration.mdc` are always on. The others apply by file.
 
 ## Brief
 
 See [initial-prompt.md](initial-prompt.md).
 
+## Run
+
+Docker Compose serves the API and the built screen together on port 8080. PostgreSQL is published on port 5432. MinIO stays on the Compose network and is not published to the host. The MinIO image is built from the last community release that still publishes a binary, because Docker Hub no longer serves `minio/minio`. There is no sign-in.
+
+```bash
+docker compose up --build
+```
+
+Open http://localhost:8080. `GET /health` is the liveness check, outside `/api/v1`.
+
+During UI development the screen can run on its own and still call the API on the same paths. Leave Compose up, then from `frontend/`:
+
+```bash
+npm install
+npm run dev
+```
+
+Vite proxies `/api` and `/health` to `http://localhost:8080`. See [frontend/README.md](frontend/README.md).
+
 ## Status
 
-Design artifacts (glossary, ADRs, architecture, Cursor rules) are in place. Application code (`backend/`, `frontend/`, Compose) is not scaffolded yet — implement incrementally against the architecture docs.
+The inventory screen shell and `GET /health` are served on port 8080. Catalog, vehicles, and primary images are not built yet.

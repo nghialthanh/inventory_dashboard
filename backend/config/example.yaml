@@ -1,0 +1,8 @@
+http_addr: ":8080"
+database_url: "postgres://inventory:inventory@postgres:5432/inventory?sslmode=disable"
+static_dir: "/app/static"
+minio_endpoint: "minio:9000"
+minio_access_key: "inventory"
+minio_secret_key: "inventory-secret"
+minio_bucket: "vehicle-images"
+minio_use_ssl: false

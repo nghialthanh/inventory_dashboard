@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+html {
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+}
+
+h1,
+h2 {
+  font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+}
