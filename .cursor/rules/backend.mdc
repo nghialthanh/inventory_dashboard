@@ -1,87 +1,18 @@
 ---
-description: Golang Echo modular monolith — handlers, services, inventory domain rules
+description: HTTP adapter, service interfaces, logic, and repositories
 globs: backend/**/*
 alwaysApply: false
 ---
 
-# Backend (Golang)
+# Backend
 
-## Purpose
+All server code is Go under `backend/`. Layout: `docs/architecture/directory-structure.md`.
 
-All server code is Go under `backend/`. Preserve Echo + PostgreSQL modular layout, thin handlers, service-layer domain logic, and ADR invariants.
+- Handlers are the HTTP adapter. They bind DTOs, call an `internal/services` interface, and return `dto.Success` or `mapError`. They do not import logic or repositories.
+- `internal/services` declares those interfaces and does not implement them. Events and third-party adapters call the same interfaces.
+- Feature logic lives in `internal/logic/**` and implements the service interfaces, including one derivation of inventory age and stock state.
+- Repositories own queries and commands. Use `ErrValidation`, `ErrNotFound`, and `ErrConflict`.
+- Register routes only in `internal/app/routes/v1/routes.go`.
+- Calendar dates are `DATE` / `YYYY-MM-DD`. JSON tags are snake_case.
 
-## When it applies
-
-Any change under `backend/**` (handlers, logic, dto, models, repositories, middlewares, routes, config, storage).
-
-## Required practices
-
-### Layout (do not invent parallel trees)
-
-```
-backend/api/handlers|middlewares
-backend/internal/app/routes/v1/routes.go
-backend/internal/dto
-backend/internal/models
-backend/internal/repositories
-backend/internal/logic/{catalog,vehicle,media,aging}
-backend/internal/services   # interfaces per domain + registry
-backend/internal/common/{constant,errors}
-backend/pkg/{config,database,storage,logger}
-```
-
-### Handlers
-
-- Bind request DTOs, call `services.*()`, return `dto.Success` / `mapError`.
-- Never embed inventory-age math, stock-out terminal rules, or VIN uniqueness in handlers.
-- Separate routes for stock-out, proposed action, and primary image (ADR-0007).
-
-### Services
-
-- Put validation and domain rules in `internal/logic/**`.
-- Aging and stock-state derivation belong in one place (e.g. `logic/aging` or `logic/vehicle` helpers) — frontend may display but must not redefine.
-- Reuse typed app errors (`ErrValidation`, `ErrNotFound`, `ErrConflict`, …).
-
-### Repositories
-
-- All table access via `repositories.Store` / GORM.
-- VIN uniqueness enforced at DB + service; stocked-out VIN never reused (ADR-0004, ADR-0006).
-
-### Routes
-
-Register in `internal/app/routes/v1/routes.go` only. Serve static UI + `/api` from one process in Compose (ADR-0009). Image GET streams bytes; never return MinIO URLs (ADR-0008).
-
-### Responses
-
-Always use the envelope:
-
-```json
-{ "code": 200, "message": "ok", "data": {}, "meta": null }
-```
-
-### Style
-
-- Match neighboring files: early returns, calendar dates as `DATE` / `YYYY-MM-DD`, snake_case JSON tags.
-- Module path: `inventory_dashboard/...` (or the module name in `go.mod`).
-
-## Must never do
-
-- Reopen a stocked-out vehicle to in stock, or allow a second vehicle with the same VIN.
-- Accept free-text make/model; require catalog `model_id`.
-- Put domain logic in `main.go`, middlewares, or DTOs.
-- Publish MinIO or embed object URLs in vehicle JSON (report `has_primary_image` only).
-- One PATCH that mixes stock-out, proposed action, and image (ADR-0007).
-
-## Examples
-
-```go
-// ✅ Stock state from date
-inStock := v.StockedOutOn == nil
-
-// ❌ Persist StockState string alongside StockedOutOn
-```
-
-```go
-// ✅ POST /vehicles/:id/stock-out → logic.Vehicle.StockOut
-// ❌ PATCH /vehicles/:id { "stock_state": "stocked_out", "proposed_action": "hold", "image": ... }
-```
+In stock means `stockedOutOn == nil`. Keep domain logic out of `main.go`, middleware, and DTOs.

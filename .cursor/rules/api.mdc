@@ -1,70 +1,21 @@
 ---
-description: REST /api/v1 conventions, envelopes, separate inventory commands
+description: /api/v1 envelope and separate inventory commands
 globs: backend/api/**/*,backend/internal/app/routes/**/*,backend/internal/dto/**/*,frontend/src/lib/api/**/*,frontend/src/lib/data.ts
 alwaysApply: false
 ---
 
-# API Design
+# API
 
-## Purpose
+Contract: `docs/architecture/api-outline.md`. Register every path in `backend/internal/app/routes/v1/routes.go`.
 
-One REST surface under `/api/v1` with a consistent JSON envelope. Prefer extending existing resources over adding duplicates. Commands follow ADR-0007.
-
-## When it applies
-
-Adding/changing HTTP endpoints, DTOs, FE `api.*` calls, or React Query mutations/queries.
-
-## Required practices
-
-### Surface map
-
-| Prefix | Auth | Notes |
-|--------|------|-------|
-| `/api/v1/catalog` | assessment-appropriate (public or simple auth) | Makes / models (read; seed-owned) |
-| `/api/v1/vehicles` | same | CRUD-ish + stock-out + proposed action + image |
-| `/api/v1/vehicles/:id/primary-image` | same | PUT/DELETE upload; GET streams bytes |
-| `/health` | public | liveness |
-| `/` (static) | public | Built UI from API process (ADR-0009) |
-
-Canonical route table: `backend/internal/app/routes/v1/routes.go`. Mapping to UI: `docs/architecture/frontend-backend-mapping.md` and `docs/architecture/api-outline.md`.
-
-### Reuse before create
-
-- Catalog reads under `/catalog` — do not invent `/makes` + `/brands`.
-- Stock-out is `POST .../stock-out`, not a generic status PATCH.
-- Proposed action is its own PUT/PATCH — not mixed into vehicle PATCH.
-- Primary image has its own routes — not a base64 field on vehicle create/update.
-
-### Contract rules
-
-- Request/response JSON: **snake_case**.
-- Envelope: `{ code, message, data, meta? }` via `dto.Success` / `dto.Error`.
-- Vehicle list/detail may include derived fields: `stock_state`, `inventory_age`, `is_aging`, `has_primary_image`.
-- IDs in paths are vehicle UUIDs (ADR-0006). VIN is a body/query field, not the path id.
-- Validate enums and dates in services (`proposed_action`, calendar `entered_on` / `stocked_out_on`).
-
-### Verb patterns
-
-- List `GET`, create `POST`, correct fields `PATCH` (in-stock only where rules require).
-- Actions: `POST .../stock-out`.
-- Replace relations/values: `PUT .../proposed-action`, `PUT .../primary-image`.
-- Clear optional image: `DELETE .../primary-image`.
-
-## Must never do
-
-- Duplicate resources (`/cars` vs `/vehicles`, `/actions` vs proposed-action command).
-- Return bare arrays without the envelope from handlers.
-- Put MinIO keys or presigned URLs in JSON (ADR-0008).
-- Ship FE calls to paths not registered in `routes.go`.
-
-## Examples
+- JSON is snake_case inside `{ code, message, data, meta? }` via `dto.Success` / `dto.Error`.
+- Path id is the vehicle UUID. VIN is a body or query field.
+- Catalog reads under `/api/v1/catalog`.
+- Correct fields with `PATCH /api/v1/vehicles/:id`.
+- Stock out with `POST …/stock-out`.
+- Set proposed action with `PUT …/proposed-action`.
+- Primary image: `PUT`, `DELETE`, and `GET` on `…/primary-image`. GET streams bytes.
 
 ```go
-// ✅ POST /api/v1/vehicles/:id/stock-out { "stocked_out_on": "2026-10-25" }
-// ❌ PATCH /api/v1/vehicles/:id { "stock_state": "STOCKED_OUT" }
-```
-
-```ts
-// ✅ api.put(`/vehicles/${id}/proposed-action`, { proposed_action: "hold" })
-// ❌ api.patch(`/vehicles/${id}`, { proposed_action, stocked_out_on, image })
+// POST /api/v1/vehicles/:id/stock-out { "stocked_out_on": "2026-10-25" }
 ```

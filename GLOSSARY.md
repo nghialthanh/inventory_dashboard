@@ -19,8 +19,8 @@ A vehicle the dealership currently holds for sale.
 _Avoid_: on hand, available, active
 
 **Stocked out**:
-A vehicle that has left inventory.
-_Avoid_: leaves, sold, deleted, stock_out
+A vehicle that has left inventory and is still on record.
+_Avoid_: sold, deleted, archived, departed
 
 **Stocked-out on**:
 The calendar day a vehicle became stocked out.
@@ -41,7 +41,7 @@ The calendar day a vehicle entered inventory. Inventory age starts on this day.
 _Avoid_: received at, stocked date, arrival timestamp
 
 **Inventory age**:
-How long a vehicle has been in inventory, counted in calendar days from entered on. For a stocked-out vehicle the count stops on stocked-out on.
+Calendar days from entered on. The entered-on day counts as 0. For a stocked-out vehicle the count stops on stocked-out on.
 _Avoid_: age, vehicle age, model year, days on lot
 
 **Aging stock**:

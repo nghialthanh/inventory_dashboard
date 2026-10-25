@@ -1,60 +1,21 @@
 ---
-description: Go tests for aging, stock-out terminal rules, VIN, and API commands
+description: HTTP tests for aging, stock-out, VIN, and separate commands
 globs: backend/**/*_test.go,frontend/**/*.{test,spec}.{ts,tsx}
 alwaysApply: false
 ---
 
 # Testing
 
-## Purpose
+Put `*_test.go` beside the code. Run `cd backend && go test ./...`.
 
-Protect inventory invariants: derived stock state, terminal stocked-out, VIN uniqueness, aging (>90), and separate commands. New behavior ships with tests at the layer that owns the rule.
+A good test calls the HTTP API and asserts the status, the envelope, `stock_state`, `inventory_age`, `is_aging`, and `error_code`. It sets a fixed UTC clock. Image tests use the image routes and do not open MinIO.
 
-## When it applies
+| Change | Cover |
+|--------|--------|
+| Aging | Age 0 is not aging. 90 days in stock is not aging. 91 is. Stocked-out age stops on `stocked_out_on` and is not aging |
+| Stock-out | The row stays stocked out. The same VIN conflicts. Clearing `stocked_out_on` conflicts |
+| VIN | Unique, including against stocked-out rows. Correctable while in stock. URL id stays |
+| Commands | Stock-out, proposed action, and image are rejected on the wrong route |
+| Image | A missing image is not found. JSON has `has_primary_image` only |
 
-Implementing or changing features in backend logic/repositories/handlers, or adding FE tests when UI logic is non-trivial.
-
-## Required practices
-
-### Backend (primary)
-
-- Location: `*_test.go` beside code.
-- Run: `cd backend && go test ./...`
-
-When you change:
-
-| Change | Add/update tests for |
-|--------|----------------------|
-| Aging / inventory age | Day boundaries; in-stock vs stocked-out stop date; `>` 90 not `>=` unless product changes |
-| Stock-out | Terminal; VIN cannot be re-added; only `stocked_out_on` correctable afterward |
-| VIN / identity | Unique; correctable while in stock; URL id stable |
-| PATCH vs commands | Forbidden field mixes rejected; each command validates its own body |
-| Image | Missing object → placeholder path; GET streams; JSON has `has_primary_image` only |
-
-### Frontend
-
-- Prefer testing pure helpers (date display, filter query builders) if extracted.
-- For UI features, verify against live API via Compose; if adding tests, colocate `*.test.ts(x)` and mock `api`.
-
-### Edge cases to always consider
-
-1. Vehicle entered today → inventory age 0; not aging.
-2. Exactly 90 days in stock → **not** aging; 91 days → aging.
-3. Stocked-out vehicle with age > 90 → **not** aging stock (must be in stock).
-4. Stock-out then attempt create same VIN → conflict.
-5. PATCH after stock-out attempting to clear `stocked_out_on` → rejected.
-
-## Must never do
-
-- Change aging or stock-out rules without updating the unit tests that lock them.
-- Assert only happy paths for VIN and terminal state.
-- Commit tests that require production credentials or a public MinIO endpoint.
-
-## Examples
-
-```go
-// ✅ TestInventoryAge_StopsOnStockedOutOn
-// ✅ TestAgingStock_RequiresInStockAndAgeGreaterThan90
-
-// ❌ “Tested manually” only after changing the 90-day threshold
-```
+Check the screen against this API. Do not add a second suite that repeats the same rules in React.

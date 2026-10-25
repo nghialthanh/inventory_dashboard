@@ -1,53 +1,16 @@
 ---
-description: Inventory dashboard UI — clear normal vs aging stock, reuse components
+description: Inventory list, aging emphasis, and separate action controls
 globs: frontend/src/**/*.{tsx,css}
 alwaysApply: false
 ---
 
-# UI (Inventory Dashboard)
+# UI
 
-## Purpose
+Shared components live in `frontend/src/components/`. Copy uses glossary terms.
 
-Visual and interaction consistency for the dealership inventory screen. Backend adapts to this UI; pages are not redesigned to match API shapes.
+- The list filters by make, model, and aging. Aging rows follow `is_aging`. Stocked-out rows stay visually distinct.
+- The primary image uses the same-origin API URL, or a placeholder when `has_primary_image` is false.
+- Stock-out, proposed action, and image are separate controls.
+- Field errors are inline. Success and failure use a toast.
 
-## When it applies
-
-Any UI markup, styling, dialogs, badges, layouts, or new screens under `frontend/src`.
-
-## Required practices
-
-### Source of truth
-
-- Shared components under `frontend/src/components/` (once scaffolded).
-- Patterns: inventory list with filters (make, model, aging), clear distinction between normal stock and aging stock, proposed-action control on aging rows.
-- Copy uses glossary terms — not “status”, “aged unit”, “brand”.
-
-### Page composition
-
-- List: filters + table/cards; aging rows visually distinct (badge/tone already used on the page).
-- Primary image: `<img src={apiImageUrl}>` or equivalent same-origin route; placeholder when `has_primary_image` is false.
-- Forms/dialogs: smallest control set — stock-out, set proposed action, upload/replace/remove image as separate actions.
-- Feedback: inline field errors + toast on success/failure.
-
-### Change bar
-
-Only change UI when:
-
-1. Backend cannot express the feature, or
-2. Product explicitly requires a new field/control.
-
-Then: smallest diff, same spacing/typography/components.
-
-## Must never do
-
-- Drive-by restyle unrelated pages while implementing a filter or action.
-- Invent a second navigation shell for the same dashboard.
-- Show MinIO or internal object keys to the manager.
-- Use emoji-heavy or marketing-hero layouts inconsistent with an ops dashboard.
-
-## Examples
-
-```tsx
-// ✅ AgingStockBadge when vehicle.is_aging
-// ❌ Custom “stale inventory” chip with different copy than the glossary
-```
+Change markup only when the API cannot express the feature, and reuse the existing spacing, type, and components.

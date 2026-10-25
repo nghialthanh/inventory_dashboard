@@ -1,30 +1,12 @@
 ---
-description: Frontend is presentation source of truth; adapt Go backend to the inventory UI
+description: Presentation lives in frontend/; shape the Go API to the inventory UI
 alwaysApply: true
 ---
 
-# Frontend Integration Rule
+# Frontend integration
 
-`frontend/` is the **official frontend** and the **source of truth for the presentation layer**. Map only `backend/` ↔ `frontend/`.
+`frontend/` is the only UI and owns presentation. Shape Go DTOs to the screen. Change page markup only when the API cannot express the feature; then keep the existing layout and update `docs/architecture/frontend-backend-mapping.md`.
 
-Companion rules: `architecture.mdc`, `frontend.mdc`, `ui.mdc`, `api.mdc`.  
-Docs: `docs/architecture/frontend-integration.md`, `docs/architecture/frontend-backend-mapping.md`.
+Wire data through thin hooks and adapters. Load the primary image from the API stream on the same origin.
 
-## Do
-
-- Preserve the UI library, design system, routing, layouts, navigation, and UX once established.
-- Reuse existing components over new ones.
-- Prefer updating Go APIs, DTOs, and mappers when the UI expects a different shape.
-- Implement missing behavior in the Golang backend before redesigning pages.
-- Wire data with thin hooks and adapters.
-- Keep image loading on the API stream route (same origin).
-
-## Do not
-
-- Replace the UI kit or redesign screens to fit backend enums.
-- Broadly rewrite pages when a backend or adapter change would suffice.
-- Introduce a second frontend application for the same inventory product.
-
-## When frontend changes are allowed
-
-Only if the feature cannot be supported from the backend (or the assessment explicitly requires UI). Then: smallest diff, same design language, update docs/mapping if the page contract changes.
+Detail: `docs/architecture/frontend-integration.md`.
