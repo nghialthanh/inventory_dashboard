@@ -1,0 +1,111 @@
+# Directory Structure
+
+Planned layout for the inventory dashboard modular monolith. Adjust only with a matching update to this doc and Cursor rules.
+
+## Repository root
+
+```
+inventory_dashboard/
+├── README.md
+├── GLOSSARY.md
+├── initial-prompt.md
+├── docs/
+│   ├── adr/                      # Hard decisions (0001–0009…)
+│   └── architecture/             # Living contract
+├── .cursor/rules/                # Agent coding rules
+├── backend/                      # Go API (+ serves static UI in Compose)
+├── frontend/                     # React + TypeScript SPA
+└── docker-compose.yml            # Postgres + MinIO + API
+```
+
+---
+
+## Backend (`backend/`)
+
+Go module: set in `go.mod` (e.g. `inventory_dashboard`).
+
+```
+backend/
+├── main.go
+├── go.mod
+├── go.sum
+├── Dockerfile
+├── config/
+│   ├── app.development.yaml
+│   └── example.yaml
+├── api/
+│   ├── handlers/
+│   │   ├── catalog.go
+│   │   ├── vehicle.go
+│   │   └── health.go
+│   └── middlewares/
+│       ├── request_id.go
+│       └── …                            # auth only if assessment requires it
+├── internal/
+│   ├── app/
+│   │   ├── server.go                    # RegisterServices + Run + static UI
+│   │   └── routes/
+│   │       ├── router.go
+│   │       └── v1/
+│   │           └── routes.go
+│   ├── common/
+│   │   ├── constant/                    # proposed_action enums, aging threshold
+│   │   └── errors/
+│   ├── dto/
+│   ├── models/
+│   │   ├── make.go
+│   │   ├── model.go
+│   │   └── vehicle.go
+│   ├── repositories/
+│   │   ├── store.go
+│   │   ├── catalog.go
+│   │   └── vehicle.go
+│   ├── logic/
+│   │   ├── catalog/
+│   │   ├── vehicle/                     # stock-out, patch rules, VIN
+│   │   ├── aging/                       # inventory age + is_aging
+│   │   └── media/                       # MinIO put/get/delete
+│   └── services/                        # interfaces + registry
+├── pkg/
+│   ├── config/
+│   ├── database/
+│   ├── storage/                         # MinIO client
+│   └── logger/
+└── …_test.go                            # beside packages
+```
+
+Static UI: multi-stage Docker build copies `frontend` dist into the API image; Echo (or chosen router) serves it beside `/api` ([ADR-0009](../adr/0009-one-origin-under-api.md)).
+
+---
+
+## Frontend (`frontend/`)
+
+```
+frontend/
+├── package.json
+├── src/
+│   ├── main.tsx
+│   ├── routes/                          # or pages/ — pick one router style
+│   ├── components/
+│   │   ├── ui/                          # primitives
+│   │   └── inventory/                   # list, filters, aging badge, dialogs
+│   ├── lib/
+│   │   ├── api/
+│   │   │   ├── client.ts                # envelope unwrap
+│   │   │   ├── types.ts                 # Api* snake_case
+│   │   │   └── adapters.ts              # toVehicleVM, …
+│   │   └── data.ts                      # TanStack Query hooks
+│   └── styles.css
+└── …
+```
+
+---
+
+## Docs vs code
+
+| Concern | Location |
+|---------|----------|
+| Domain words | `GLOSSARY.md` |
+| Trade-offs | `docs/adr/*` |
+| How the system fits together | `docs/architecture/*` |
+| How agents must code | `.cursor/rules/*.mdc` |

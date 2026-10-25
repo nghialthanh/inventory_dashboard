@@ -1,0 +1,67 @@
+---
+description: React TypeScript inventory UI — hooks/adapters, preserve page structure
+globs: frontend/**/*
+alwaysApply: false
+---
+
+# Frontend (Inventory Dashboard)
+
+## Purpose
+
+`frontend/` is the **only** official UI. Integrate live `/api/v1` data without replacing the design system, router, or page architecture once they exist.
+
+## When it applies
+
+Work under `frontend/**`, or any task that changes what the UI displays or how it loads data.
+
+## Required practices
+
+### Stack (keep)
+
+- React + TypeScript
+- TanStack Query hooks in `src/lib/data.ts` (or equivalent colocated hooks)
+- API client that unwraps the `{ code, message, data, meta }` envelope
+- Types mirror API snake_case (`Api*` types)
+- Adapters map API → view models when needed (`toVehicleVM`, aging badge, etc.)
+- UI: Tailwind + shared components under `components/`
+
+### Data wiring pattern
+
+```
+Page (existing JSX)
+  → useX() hooks
+  → api.get/post/patch/put
+  → toXVM() adapters when shapes differ
+```
+
+- Hooks call `/api` only (same origin in Compose). Do not add mock datasets once the API is wired.
+- Use glossary terms in labels and filter names (`aging stock`, `stocked out`, `proposed action`).
+
+### Integration priority
+
+1. Extend Go API / DTOs.
+2. Add/adjust hook + adapter.
+3. Only then change page markup — smallest possible diff.
+4. Empty lists: treat API `null`/`[]` consistently with the client unwrap helper.
+
+### Filters & aging
+
+- List filters: make, model, inventory age / aging stock distinction — driven by query params the backend owns.
+- Do not reimplement “> 90 days” with a divergent calendar rule; display `inventory_age` / `is_aging` from the API when provided.
+
+## Must never do
+
+- Replace the UI kit mid-feature or redesign pages to match raw Go enum names.
+- Call `fetch` ad hoc in components when a shared hook exists or should exist.
+- Add parallel server-state libraries for data already in React Query.
+- Load primary images from MinIO URLs — use the API image route.
+- Depend on a second frontend app for the same dashboard.
+
+## Examples
+
+```tsx
+// ✅ useVehicles({ makeId, modelId, agingOnly }) → GET /api/v1/vehicles?...
+// ❌ Local filter that recomputes aging with Date.now() differently from the API
+```
+
+See also: `.cursor/rules/ui.mdc`, `.cursor/rules/frontend-integration.mdc`, `docs/architecture/frontend-backend-mapping.md`.

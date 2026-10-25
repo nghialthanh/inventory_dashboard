@@ -1,0 +1,60 @@
+---
+description: PostgreSQL schema for vehicles, catalog, MinIO keys, derived stock state
+globs: backend/internal/models/**/*,backend/internal/repositories/**/*,docs/architecture/database-schema.md
+alwaysApply: false
+---
+
+# Database (PostgreSQL)
+
+## Purpose
+
+PostgreSQL is the system of record. Repositories use GORM (or sqlc — match what the repo adopts). Schema docs live in `docs/architecture/database-schema.md`.
+
+## When it applies
+
+Model field changes, new tables, index changes, repository queries.
+
+## Required practices
+
+### Tables (reuse these)
+
+`makes`, `models`, `vehicles` (+ migrations/seed for catalog). Object bytes are **not** in Postgres — only the primary image object key (ADR-0003).
+
+### Domain field conventions
+
+| Area | Rules |
+|------|--------|
+| Vehicle id | UUID primary key (ADR-0006) |
+| VIN | Unique; never reused after stock-out (ADR-0004) |
+| Stock state | No status column; derive from `stocked_out_on` nullability (ADR-0005) |
+| Dates | `entered_on`, `stocked_out_on` as calendar `DATE` |
+| Catalog | `models.make_id` → `makes`; vehicle stores `model_id` only (ADR-0002) |
+| Proposed action | Nullable enum/text constrained to the three glossary values |
+| Primary image | Nullable object key string |
+
+### Schema change process
+
+1. Update models + migration.
+2. Update repository methods.
+3. Update `docs/architecture/database-schema.md`.
+4. If the decision is surprising or hard to reverse, add/adjust an ADR.
+
+### Indexes (minimum)
+
+- Unique `vehicles.vin`
+- Unique `vehicles.id`
+- Filter helpers: `(stocked_out_on)`, `(model_id)`, `(entered_on)` as list filters require
+
+## Must never do
+
+- Store image bytes in Postgres or a second “gallery” table for this assessment (ADR-0003).
+- Add a `stock_state` column that can diverge from `stocked_out_on`.
+- Hard-delete stocked-out vehicles to “clean up” (ADR-0001).
+- Put aging threshold (90) only in SQL views without a tested Go rule the API uses.
+
+## Examples
+
+```sql
+-- ✅ stocked_out_on DATE NULL  -- null ⇒ in stock
+-- ❌ status TEXT CHECK (status IN ('IN_STOCK','STOCKED_OUT')) plus stocked_out_on
+```

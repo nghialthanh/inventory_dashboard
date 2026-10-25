@@ -1,0 +1,61 @@
+---
+description: Keep docs/architecture, ADRs, and GLOSSARY in sync with inventory behavior
+globs: docs/**/*.md,GLOSSARY.md,backend/internal/app/routes/**/*,backend/internal/logic/**/*
+alwaysApply: false
+---
+
+# Documentation
+
+## Purpose
+
+`docs/architecture/` is the living contract for modules, API, schema, and FE↔BE wiring. `GLOSSARY.md` owns language. `docs/adr/` owns hard decisions. Implementation and docs must not drift.
+
+## When it applies
+
+Any change to inventory rules, API routes/DTOs, schema, aging behavior, image delivery, Compose topology, or FE↔BE integration patterns.
+
+## Required practices
+
+### Doc map
+
+| File | Update when… |
+|------|----------------|
+| `GLOSSARY.md` | Domain term added/renamed/avoid-list changes |
+| `docs/adr/*` | Hard-to-reverse trade-off decided or superseded |
+| `docs/architecture/README.md` | Domain rules, workflows, system context |
+| `docs/architecture/api-outline.md` | New/changed endpoints or envelope semantics |
+| `docs/architecture/database-schema.md` | Tables, fields, indexes |
+| `docs/architecture/directory-structure.md` | Package layout shifts |
+| `docs/architecture/frontend-integration.md` | FE-first integration policy |
+| `docs/architecture/frontend-backend-mapping.md` | Page ↔ API ↔ hook mapping |
+| `docs/architecture/inventory-frontend.md` | Routes/nav/stack notes |
+| `README.md` | Bootstrap, ports, Compose, quick start |
+
+### Sync rules
+
+1. Same change as the code whenever behavior API consumers rely on changes.
+2. Examples in docs (aging threshold, sample JSON, enum values) must match `constant/*`, `routes.go`, and FE adapters.
+3. New wired page → add a row to `frontend-backend-mapping.md`.
+4. New surprising decision → ADR before or with the code; do not bury it only in a PR description.
+
+### Cursor rules
+
+If conventions themselves change (new DI style, new API prefix), update `.cursor/rules/*.mdc` so agents keep generating consistent code.
+
+## Must never do
+
+- Ship an aging or stock-out rule change with only code and no architecture/ADR note.
+- Document aspirational APIs as if implemented — mark **planned** vs **implemented**.
+- Leave duplicate conflicting descriptions (e.g. free-text make vs catalog).
+- Add large marketing docs unrelated to the assessment architecture.
+
+## Examples
+
+```md
+# ✅ After adding proposed-action clear:
+# - api-outline.md: DELETE or PUT null semantics
+# - frontend-backend-mapping.md: dialog wiring
+# - ADR if clear-vs-hold trade-off was non-obvious
+
+# ❌ Code merged; docs still say stock state is a column
+```

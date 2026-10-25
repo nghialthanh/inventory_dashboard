@@ -1,0 +1,71 @@
+---
+description: Modular monolith, glossary language, ADR discipline for Inventory Dashboard
+alwaysApply: true
+---
+
+# Architecture (Inventory Dashboard)
+
+## Purpose
+
+Keep this repo a **modular monolith**: Go API + React `frontend/`, PostgreSQL as source of truth, MinIO for primary images. New work extends existing modules; do not invent parallel stacks. Domain language lives in `GLOSSARY.md`; hard decisions live in `docs/adr/`.
+
+## When it applies
+
+Every feature, bugfix, refactor, or design discussion in this repository.
+
+## Required practices
+
+1. **Read first** — Before coding, inspect the existing handler → service → repository path and the page/hook that will consume it (`docs/architecture/frontend-backend-mapping.md`).
+2. **Reuse modules** — Prefer existing `internal/logic/*` packages, catalog/vehicle services, and `frontend/src` hooks/adapters over new packages/pages.
+3. **Business logic in services** — Domain rules live in `backend/internal/logic/**`. Handlers only bind, call services, map errors.
+4. **Repository pattern** — Persistence only in `backend/internal/repositories`. Services never open the database directly.
+5. **DI via service registry** — Register in `internal/app/server.go`; call `services.Vehicle()`, `services.Catalog()`, `services.Media()`, etc. Do not invent a second DI framework.
+6. **Glossary language** — Use terms from `GLOSSARY.md` in code, APIs, UI copy, and docs (`vehicle`, `VIN`, `in stock`, `stocked out`, `entered on`, `inventory age`, `aging stock`, `proposed action`). Do not invent synonyms.
+7. **ADR-backed decisions** — Stocked-out retention, catalog makes/models, MinIO primary image, terminal stocked-out, derived stock state, UUID vehicle id, separate commands, API-streamed images, one-origin Compose — see `docs/adr/`. Change behavior only with a new ADR.
+8. **Minimal diffs** — No drive-by refactors, no renaming for taste, no new libraries unless unavoidable.
+9. **Docs follow behavior** — When inventory rules, schema, or API contracts change, update `docs/architecture/*` (and ADRs/glossary when language or decisions change) in the same change.
+
+## Must never do
+
+- Soft-delete or drop a vehicle on stock-out (ADR-0001); invent a reopen-to-in-stock path (ADR-0004).
+- Persist a stock-state column that can disagree with `stocked_out_on` (ADR-0005).
+- Put free-text make/model on the vehicle instead of the catalog (ADR-0002).
+- Expose MinIO URLs to the browser or publish MinIO (ADR-0008, ADR-0009).
+- Split into microservices or introduce GraphQL/gRPC without an explicit ADR.
+- Duplicate aging-stock or stock-state rules on frontend and backend differently.
+
+## Domain anchors (this codebase)
+
+| Concern | Source of truth |
+|---------|-----------------|
+| Language | `GLOSSARY.md` |
+| Decisions | `docs/adr/0001`–`0009` |
+| Stock state | Derived: in stock ⇔ `stocked_out_on` is null |
+| Inventory age | Calendar days from `entered_on`; stops on `stocked_out_on` when set |
+| Aging stock | In stock **and** inventory age **> 90** days |
+| Proposed action | Optional; one of price reduction planned / wholesale planned / hold; replace-in-place |
+| Vehicle identity | Opaque UUID in URLs; VIN unique; VIN correctable only while in stock |
+| Primary image | Optional; object key in Postgres; bytes in MinIO; streamed by API |
+| API root | `/api/v1` under one origin with the UI (Compose) |
+
+## AI behavior checklist
+
+Before implementing:
+
+1. Search existing endpoints in `backend/internal/app/routes/v1/routes.go` (once scaffolded).
+2. Reuse services/hooks/adapters; extend rather than copy.
+3. Call out architectural trade-offs **before** large structural changes; record an ADR when the decision is hard to reverse.
+4. Add/adjust tests for aging boundaries, terminal stocked-out, VIN uniqueness, and command isolation when logic changes.
+
+## Example
+
+```go
+// ✅ Thin handler → service
+func (h *VehicleHandler) StockOut(c echo.Context) error {
+  out, err := services.Vehicle().StockOut(c.Request().Context(), id, req)
+  if err != nil { return mapError(c, err) }
+  return dto.Success(c, http.StatusOK, "ok", out)
+}
+
+// ❌ Handler encodes aging rules + writes MinIO + SQL directly
+```
