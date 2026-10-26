@@ -2,8 +2,10 @@ import { useState } from "react";
 
 import type { ApiMeta, ApiVehicle } from "../../lib/api/client";
 import { useVehicle } from "../../lib/data";
+import { proposedActionLabel } from "../../lib/proposedAction";
 import { AgingBadge } from "./AgingBadge";
 import { CorrectVehicleDialog } from "./CorrectVehicleDialog";
+import { ProposedActionControl } from "./ProposedActionControl";
 import { StockOutDialog } from "./StockOutDialog";
 
 function stockStateLabel(state: ApiVehicle["stock_state"]): string {
@@ -146,7 +148,9 @@ function VehicleRows({
         <td className="px-4 py-3">
           <AgingBadge aging={vehicle.is_aging} />
         </td>
-        <td className="px-4 py-3">{vehicle.proposed_action ?? "None"}</td>
+        <td className="px-4 py-3">
+          {proposedActionLabel(vehicle.proposed_action)}
+        </td>
         <td className="px-4 py-3">{vehicle.has_primary_image ? "Yes" : "No"}</td>
       </tr>
       {open ? (
@@ -212,7 +216,7 @@ function VehicleView({ id }: { id: string }) {
         </div>
         <div>
           <dt className="text-[#4e463c]">Proposed action</dt>
-          <dd>{row.proposed_action ?? "None"}</dd>
+          <dd>{proposedActionLabel(row.proposed_action)}</dd>
         </div>
         <div>
           <dt className="text-[#4e463c]">Primary image</dt>
@@ -222,13 +226,14 @@ function VehicleView({ id }: { id: string }) {
       {row.stock_state === "stocked_out" ? (
         <p className="mt-4 text-sm text-[#4e463c]">
           VIN, model, and entered on cannot be corrected because the vehicle is
-          stocked out.
+          stocked out. The last proposed action stays as recorded.
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">
         {row.stock_state === "in_stock" ? (
           <CorrectVehicleDialog vehicle={row} />
         ) : null}
+        <ProposedActionControl vehicle={row} />
         <StockOutDialog vehicle={row} />
       </div>
     </div>

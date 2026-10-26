@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"inventory_dashboard/internal/common/constant"
 	apperrors "inventory_dashboard/internal/common/errors"
 	"inventory_dashboard/internal/logic/aging"
 	"inventory_dashboard/internal/models"
@@ -151,6 +152,50 @@ func (v *Vehicles) StockOutVehicle(ctx context.Context, id string, stockedOutOn 
 		return models.Vehicle{}, err
 	}
 	return v.GetVehicle(ctx, parsed)
+}
+
+// SetProposedAction sets, replaces, or clears the proposed action on aging stock.
+func (v *Vehicles) SetProposedAction(ctx context.Context, id string, proposedAction *string) (models.Vehicle, error) {
+	if v.repo == nil {
+		return models.Vehicle{}, fmt.Errorf("vehicles are not configured")
+	}
+	parsed, err := ParseVehicleID(id)
+	if err != nil {
+		return models.Vehicle{}, err
+	}
+	stored, err := v.repo.Get(ctx, parsed)
+	if err != nil {
+		return models.Vehicle{}, err
+	}
+	age := aging.InventoryAge(stored.EnteredOn, stored.StockedOutOn, v.today())
+	if !aging.IsAging(stored.StockedOutOn, age) {
+		return models.Vehicle{}, &apperrors.WithMessage{
+			Err:     apperrors.ErrConflict,
+			Message: "A proposed action is accepted only for aging stock.",
+		}
+	}
+	next, err := parseProposedAction(proposedAction)
+	if err != nil {
+		return models.Vehicle{}, err
+	}
+	if err := v.repo.SetProposedAction(ctx, parsed, next); err != nil {
+		return models.Vehicle{}, err
+	}
+	return v.GetVehicle(ctx, parsed)
+}
+
+func parseProposedAction(raw *string) (*string, error) {
+	if raw == nil || strings.TrimSpace(*raw) == "" {
+		return nil, nil
+	}
+	value := strings.TrimSpace(*raw)
+	if _, ok := constant.KnownProposedActions[value]; !ok {
+		return nil, &apperrors.WithMessage{
+			Err:     apperrors.ErrValidation,
+			Message: "Choose price reduction planned, wholesale planned, or hold.",
+		}
+	}
+	return &value, nil
 }
 
 // GetVehicle returns one vehicle by its address.

@@ -91,6 +91,28 @@ func StockOutVehicle(vehicles services.Vehicles) echo.HandlerFunc {
 	}
 }
 
+type proposedActionRequest struct {
+	ProposedAction *string `json:"proposed_action"`
+}
+
+// SetProposedAction is PUT /api/v1/vehicles/:id/proposed-action.
+func SetProposedAction(vehicles services.Vehicles) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if vehicles == nil {
+			return mapError(c, errNotConfigured("vehicles"))
+		}
+		var req proposedActionRequest
+		if err := c.Bind(&req); err != nil {
+			return mapError(c, apperrors.ErrValidation)
+		}
+		vehicle, err := vehicles.SetProposedAction(c.Request().Context(), c.Param("id"), req.ProposedAction)
+		if err != nil {
+			return mapError(c, err)
+		}
+		return dto.Success(c, http.StatusOK, vehicle)
+	}
+}
+
 // GetVehicle is GET /api/v1/vehicles/:id.
 func GetVehicle(vehicles services.Vehicles) echo.HandlerFunc {
 	return func(c echo.Context) error {

@@ -69,6 +69,23 @@ func (v *Vehicles) StockOut(ctx context.Context, id string, stockedOutOn time.Ti
 	return nil
 }
 
+// SetProposedAction stores or clears the proposed action on one vehicle.
+func (v *Vehicles) SetProposedAction(ctx context.Context, id string, proposedAction *string) error {
+	tag, err := v.pool.Exec(ctx, `
+		UPDATE vehicles
+		SET proposed_action = $2,
+			updated_at = now()
+		WHERE id = $1
+	`, id, proposedAction)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return apperrors.ErrNotFound
+	}
+	return nil
+}
+
 func vinConflict(err error) error {
 	if err == nil {
 		return nil

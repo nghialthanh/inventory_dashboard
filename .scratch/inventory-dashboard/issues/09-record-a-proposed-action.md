@@ -4,12 +4,12 @@
 
 **Blocked by:** 04 See aging stock, 06 Stock out a vehicle
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] On an aging vehicle the manager can set price reduction planned, wholesale planned, or hold, and sees that value on the vehicle
-- [ ] Hold is stored and shown as a proposed action, distinct from having none
-- [ ] A new proposed action replaces the previous one. An empty value clears it
-- [ ] Setting, replacing, or clearing a proposed action is rejected when the vehicle is not aging stock, including a vehicle in stock for exactly 90 days
-- [ ] Any value outside those three intentions is rejected
-- [ ] After stock-out the last proposed action remains visible, and a further change is rejected
-- [ ] This behavior is verified through the HTTP API against PostgreSQL with the clock fixed
+- [x] On an aging vehicle the manager can set price reduction planned, wholesale planned, or hold, and sees that value on the vehicle
+- [x] Hold is stored and shown as a proposed action, distinct from having none
+- [x] A new proposed action replaces the previous one. An empty value clears it
+- [x] Setting, replacing, or clearing a proposed action is rejected when the vehicle is not aging stock, including a vehicle in stock for exactly 90 days
+- [x] Any value outside those three intentions is rejected
+- [x] After stock-out the last proposed action remains visible, and a further change is rejected
+- [x] This behavior is verified through the HTTP API against PostgreSQL with the clock fixed

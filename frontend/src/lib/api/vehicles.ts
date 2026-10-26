@@ -3,8 +3,15 @@ import {
   getList,
   patchJSON,
   postJSON,
+  putJSON,
   type ApiVehicle,
 } from "./client";
+
+export type ProposedAction =
+  | "price_reduction_planned"
+  | "wholesale_planned"
+  | "hold"
+  | "";
 
 export type VehicleListQuery = {
   makeId: string;
@@ -78,6 +85,20 @@ export function stockOutVehicle(
 ): Promise<ApiVehicle> {
   return postJSON<ApiVehicle>(
     `/api/v1/vehicles/${encodeURIComponent(id)}/stock-out`,
+    input,
+  );
+}
+
+export type SetProposedActionInput = {
+  proposed_action: ProposedAction;
+};
+
+export function setProposedAction(
+  id: string,
+  input: SetProposedActionInput,
+): Promise<ApiVehicle> {
+  return putJSON<ApiVehicle>(
+    `/api/v1/vehicles/${encodeURIComponent(id)}/proposed-action`,
     input,
   );
 }

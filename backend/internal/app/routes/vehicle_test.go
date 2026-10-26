@@ -147,6 +147,11 @@ func patchJSON(t *testing.T, srv handler, path, raw string) *httptest.ResponseRe
 	return sendJSON(t, srv, http.MethodPatch, path, raw)
 }
 
+func putJSON(t *testing.T, srv handler, path, raw string) *httptest.ResponseRecorder {
+	t.Helper()
+	return sendJSON(t, srv, http.MethodPut, path, raw)
+}
+
 func sendJSON(t *testing.T, srv handler, method, path, raw string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(method, path, bytes.NewBufferString(raw))

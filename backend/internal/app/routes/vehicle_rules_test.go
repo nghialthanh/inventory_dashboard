@@ -671,6 +671,137 @@ func TestCorrectionAfterStockOutIsRejectedAndFieldsStay(t *testing.T) {
 	}
 }
 
+func TestProposedActionOnAgingStockIsSetAndShown(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+	aging := recordVehicle(t, srv, civicVIN, civicID, "2026-07-27")
+	if aging.InventoryAge != 91 || !aging.IsAging {
+		t.Fatalf("setup = age %d aging %v, want 91 true", aging.InventoryAge, aging.IsAging)
+	}
+
+	rec := putJSON(t, srv, "/api/v1/vehicles/"+aging.ID+"/proposed-action", `{"proposed_action":"price_reduction_planned"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("set status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	set := decodeVehicle(t, rec.Body.Bytes()).Data
+	if set.ProposedAction == nil || *set.ProposedAction != "price_reduction_planned" {
+		t.Fatalf("proposed_action = %v, want price_reduction_planned", set.ProposedAction)
+	}
+	if !set.IsAging || set.StockState != "in_stock" {
+		t.Fatalf("after set = aging %v state %s, want aging in_stock", set.IsAging, set.StockState)
+	}
+
+	viewed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+aging.ID).Body.Bytes()).Data
+	if viewed.ProposedAction == nil || *viewed.ProposedAction != "price_reduction_planned" {
+		t.Fatalf("view proposed_action = %v, want price_reduction_planned", viewed.ProposedAction)
+	}
+}
+
+func TestHoldIsAProposedActionDistinctFromNone(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+	aging := recordVehicle(t, srv, civicVIN, civicID, "2026-07-27")
+	if aging.ProposedAction != nil {
+		t.Fatalf("start proposed_action = %v, want none", aging.ProposedAction)
+	}
+
+	held := setProposedAction(t, srv, aging.ID, "hold")
+	if held.ProposedAction == nil || *held.ProposedAction != "hold" {
+		t.Fatalf("hold = %v, want hold (not none)", held.ProposedAction)
+	}
+}
+
+func TestProposedActionReplacesAndEmptyClears(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+	aging := recordVehicle(t, srv, civicVIN, civicID, "2026-07-27")
+
+	first := setProposedAction(t, srv, aging.ID, "price_reduction_planned")
+	if first.ProposedAction == nil || *first.ProposedAction != "price_reduction_planned" {
+		t.Fatalf("first = %v, want price_reduction_planned", first.ProposedAction)
+	}
+
+	replaced := setProposedAction(t, srv, aging.ID, "wholesale_planned")
+	if replaced.ProposedAction == nil || *replaced.ProposedAction != "wholesale_planned" {
+		t.Fatalf("replaced = %v, want wholesale_planned", replaced.ProposedAction)
+	}
+
+	cleared := setProposedAction(t, srv, aging.ID, "")
+	if cleared.ProposedAction != nil {
+		t.Fatalf("cleared = %v, want none", cleared.ProposedAction)
+	}
+}
+
+func TestProposedActionRejectedWhenNotAgingStock(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+
+	fresh := recordVehicle(t, srv, civicVIN, civicID, "2026-10-26")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+fresh.ID+"/proposed-action", `{"proposed_action":"hold"}`), http.StatusConflict, "CONFLICT")
+
+	ninety := recordVehicle(t, srv, secondVIN, civicID, "2026-07-28")
+	if ninety.InventoryAge != 90 || ninety.IsAging {
+		t.Fatalf("90 days = age %d aging %v, want 90 false", ninety.InventoryAge, ninety.IsAging)
+	}
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+ninety.ID+"/proposed-action", `{"proposed_action":"hold"}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+ninety.ID+"/proposed-action", `{"proposed_action":""}`), http.StatusConflict, "CONFLICT")
+
+	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+ninety.ID).Body.Bytes()).Data
+	if kept.ProposedAction != nil {
+		t.Fatalf("proposed_action after reject = %v, want none", kept.ProposedAction)
+	}
+}
+
+func TestProposedActionRejectsUnknownIntentions(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+	aging := recordVehicle(t, srv, civicVIN, civicID, "2026-07-27")
+
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+aging.ID+"/proposed-action", `{"proposed_action":"discount"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+aging.ID+"/proposed-action", `{"proposed_action":"no_action"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+
+	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+aging.ID).Body.Bytes()).Data
+	if kept.ProposedAction != nil {
+		t.Fatalf("proposed_action after reject = %v, want none", kept.ProposedAction)
+	}
+}
+
+func TestProposedActionStaysVisibleAfterStockOutAndFurtherChangeIsRejected(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+	aging := recordVehicle(t, srv, civicVIN, civicID, "2026-07-27")
+	setProposedAction(t, srv, aging.ID, "wholesale_planned")
+
+	departed := stockOutVehicle(t, srv, aging.ID, "2026-10-20")
+	if departed.ProposedAction == nil || *departed.ProposedAction != "wholesale_planned" {
+		t.Fatalf("after stock-out proposed_action = %v, want wholesale_planned", departed.ProposedAction)
+	}
+	if departed.IsAging || departed.StockState != "stocked_out" {
+		t.Fatalf("after stock-out = aging %v state %s, want stocked_out not aging", departed.IsAging, departed.StockState)
+	}
+
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+aging.ID+"/proposed-action", `{"proposed_action":"hold"}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+aging.ID+"/proposed-action", `{"proposed_action":""}`), http.StatusConflict, "CONFLICT")
+
+	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+aging.ID).Body.Bytes()).Data
+	if stayed.ProposedAction == nil || *stayed.ProposedAction != "wholesale_planned" {
+		t.Fatalf("after rejected change = %v, want wholesale_planned", stayed.ProposedAction)
+	}
+}
+
+func setProposedAction(t *testing.T, srv handler, id, value string) vehicleJSON {
+	t.Helper()
+	raw, err := json.Marshal(map[string]string{"proposed_action": value})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := putJSON(t, srv, "/api/v1/vehicles/"+id+"/proposed-action", string(raw))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("proposed-action status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	return decodeVehicle(t, rec.Body.Bytes()).Data
+}
+
 func TestLaterStockOutReplacesTheDateAndClearingIsRejected(t *testing.T) {
 	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
 	srv := vehicleServer(t, today)

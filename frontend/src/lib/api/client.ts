@@ -99,6 +99,16 @@ export async function postJSON<T>(path: string, payload: unknown): Promise<T> {
   return body.data;
 }
 
+export async function putJSON<T>(path: string, payload: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await readEnvelope<T>(response);
+  return body.data;
+}
+
 export async function getList<T>(
   path: string,
 ): Promise<{ items: T[]; meta: ApiMeta }> {

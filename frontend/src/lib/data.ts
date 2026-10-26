@@ -6,9 +6,11 @@ import {
   createVehicle,
   getVehicle,
   listVehicles,
+  setProposedAction,
   stockOutVehicle,
   type CorrectVehicleInput,
   type RecordVehicleInput,
+  type SetProposedActionInput,
   type StockOutVehicleInput,
   type VehicleListQuery,
 } from "./api/vehicles";
@@ -68,6 +70,16 @@ export function useStockOutVehicle(id: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: StockOutVehicleInput) => stockOutVehicle(id, input),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["vehicles"] });
+    },
+  });
+}
+
+export function useSetProposedAction(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SetProposedActionInput) => setProposedAction(id, input),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["vehicles"] });
     },
