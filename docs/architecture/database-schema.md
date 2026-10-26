@@ -2,7 +2,7 @@
 
 PostgreSQL is the system of record. MinIO holds primary image bytes; Postgres stores only the object key ([ADR-0003](../adr/0003-primary-image-in-minio.md)).
 
-**Status:** `makes`, `models`, and `vehicles` are migrated. Makes and models are seeded. Demo vehicles are not seeded yet.
+**Status:** `makes`, `models`, and `vehicles` are migrated. Makes, models, and demo vehicles (ages 0, 90, 91, plus one stocked-out stay longer than 90 days) are seeded.
 
 ## Tables
 

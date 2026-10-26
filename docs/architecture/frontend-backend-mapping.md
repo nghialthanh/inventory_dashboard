@@ -14,7 +14,7 @@ Living map of dashboard surfaces → API → hooks. Update a row when a page is 
 | Vehicle detail / row expand | Inspect one vehicle | `GET /api/v1/vehicles/:id` | `useVehicle(id)` | implemented |
 | Create vehicle | Add in-stock vehicle | `POST /api/v1/vehicles` | `useCreateVehicle()` | implemented |
 | Correct vehicle | Edit allowed fields while in stock | `PATCH /api/v1/vehicles/:id` | `useCorrectVehicle(id)` | implemented |
-| Stock out | Record departure day | `POST /api/v1/vehicles/:id/stock-out` | `useStockOutVehicle()` | planned |
+| Stock out | Record departure day | `POST /api/v1/vehicles/:id/stock-out` | `useStockOutVehicle(id)` | implemented |
 | Proposed action | Set, replace, or clear on aging stock | `PUT /api/v1/vehicles/:id/proposed-action` | `useSetProposedAction()` | planned |
 | Primary image display | Thumbnail / detail image | `GET /api/v1/vehicles/:id/primary-image` | URL helper `vehiclePrimaryImageUrl(id)` | planned |
 | Upload / replace image | Set primary image | `PUT /api/v1/vehicles/:id/primary-image` | `useUploadPrimaryImage()` | planned |

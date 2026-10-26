@@ -44,6 +44,32 @@ func ParseEnteredOn(raw string, today time.Time) (time.Time, error) {
 	return entered, nil
 }
 
+// ParseStockedOutOn accepts a calendar day on or after entered on and on or before today.
+func ParseStockedOutOn(raw string, enteredOn, today time.Time) (time.Time, error) {
+	if strings.TrimSpace(raw) == "" {
+		return time.Time{}, apperrors.ErrValidation
+	}
+	stockedOutOn, err := time.Parse("2006-01-02", raw)
+	if err != nil {
+		return time.Time{}, apperrors.ErrValidation
+	}
+	stockedOutOn = aging.UTCDate(stockedOutOn)
+	entered := aging.UTCDate(enteredOn)
+	if stockedOutOn.Before(entered) {
+		return time.Time{}, &apperrors.WithMessage{
+			Err:     apperrors.ErrValidation,
+			Message: "Stocked-out on cannot be before entered on.",
+		}
+	}
+	if stockedOutOn.After(aging.UTCDate(today)) {
+		return time.Time{}, &apperrors.WithMessage{
+			Err:     apperrors.ErrValidation,
+			Message: "Stocked-out on cannot be after today.",
+		}
+	}
+	return stockedOutOn, nil
+}
+
 // ParseModelID requires a model UUID.
 func ParseModelID(raw string) (string, error) {
 	if _, err := uuid.Parse(strings.TrimSpace(raw)); err != nil {

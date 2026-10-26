@@ -6,8 +6,10 @@ import {
   createVehicle,
   getVehicle,
   listVehicles,
+  stockOutVehicle,
   type CorrectVehicleInput,
   type RecordVehicleInput,
+  type StockOutVehicleInput,
   type VehicleListQuery,
 } from "./api/vehicles";
 
@@ -56,6 +58,16 @@ export function useCreateVehicle() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: RecordVehicleInput) => createVehicle(input),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["vehicles"] });
+    },
+  });
+}
+
+export function useStockOutVehicle(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: StockOutVehicleInput) => stockOutVehicle(id, input),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["vehicles"] });
     },

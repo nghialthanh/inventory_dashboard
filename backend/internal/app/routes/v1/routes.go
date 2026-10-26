@@ -15,5 +15,6 @@ func Register(g *echo.Group, catalog services.Catalog, vehicles services.Vehicle
 	g.GET("/vehicles", handlers.ListVehicles(vehicles))
 	g.POST("/vehicles", handlers.RecordVehicle(vehicles))
 	g.PATCH("/vehicles/:id", handlers.CorrectVehicle(vehicles))
+	g.POST("/vehicles/:id/stock-out", handlers.StockOutVehicle(vehicles))
 	g.GET("/vehicles/:id", handlers.GetVehicle(vehicles))
 }

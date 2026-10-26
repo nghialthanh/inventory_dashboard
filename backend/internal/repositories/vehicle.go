@@ -52,6 +52,23 @@ func (v *Vehicles) Correct(ctx context.Context, id string, vin, modelID *string,
 	return nil
 }
 
+// StockOut records or replaces stocked-out on for one vehicle.
+func (v *Vehicles) StockOut(ctx context.Context, id string, stockedOutOn time.Time) error {
+	tag, err := v.pool.Exec(ctx, `
+		UPDATE vehicles
+		SET stocked_out_on = $2,
+			updated_at = now()
+		WHERE id = $1
+	`, id, stockedOutOn)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return apperrors.ErrNotFound
+	}
+	return nil
+}
+
 func vinConflict(err error) error {
 	if err == nil {
 		return nil

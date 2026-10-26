@@ -25,6 +25,10 @@ export type CorrectVehicleInput = {
   entered_on?: string;
 };
 
+export type StockOutVehicleInput = {
+  stocked_out_on: string;
+};
+
 export function listVehicles(query: VehicleListQuery) {
   const params = new URLSearchParams();
   if (query.makeId) {
@@ -56,6 +60,16 @@ export function correctVehicle(
 ): Promise<ApiVehicle> {
   return patchJSON<ApiVehicle>(
     `/api/v1/vehicles/${encodeURIComponent(id)}`,
+    input,
+  );
+}
+
+export function stockOutVehicle(
+  id: string,
+  input: StockOutVehicleInput,
+): Promise<ApiVehicle> {
+  return postJSON<ApiVehicle>(
+    `/api/v1/vehicles/${encodeURIComponent(id)}/stock-out`,
     input,
   );
 }

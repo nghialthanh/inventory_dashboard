@@ -3,6 +3,7 @@ package vehicle
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -115,6 +116,38 @@ func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin, modelID, 
 		return models.Vehicle{}, apperrors.ErrValidation
 	}
 	if err := v.repo.Correct(ctx, parsed, nextVIN, nextModelID, nextEntered); err != nil {
+		return models.Vehicle{}, err
+	}
+	return v.GetVehicle(ctx, parsed)
+}
+
+// StockOutVehicle records stocked-out on. Clearing it is a conflict: the departure stands.
+func (v *Vehicles) StockOutVehicle(ctx context.Context, id string, stockedOutOn *string) (models.Vehicle, error) {
+	if v.repo == nil {
+		return models.Vehicle{}, fmt.Errorf("vehicles are not configured")
+	}
+	parsed, err := ParseVehicleID(id)
+	if err != nil {
+		return models.Vehicle{}, err
+	}
+	stored, err := v.repo.Get(ctx, parsed)
+	if err != nil {
+		return models.Vehicle{}, err
+	}
+	if stockedOutOn == nil || strings.TrimSpace(*stockedOutOn) == "" {
+		if stored.StockedOutOn != nil {
+			return models.Vehicle{}, &apperrors.WithMessage{
+				Err:     apperrors.ErrConflict,
+				Message: "The departure stands.",
+			}
+		}
+		return models.Vehicle{}, apperrors.ErrValidation
+	}
+	on, err := ParseStockedOutOn(*stockedOutOn, stored.EnteredOn, v.today())
+	if err != nil {
+		return models.Vehicle{}, err
+	}
+	if err := v.repo.StockOut(ctx, parsed, on); err != nil {
 		return models.Vehicle{}, err
 	}
 	return v.GetVehicle(ctx, parsed)

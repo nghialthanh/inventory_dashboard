@@ -69,6 +69,28 @@ func CorrectVehicle(vehicles services.Vehicles) echo.HandlerFunc {
 	}
 }
 
+type stockOutRequest struct {
+	StockedOutOn *string `json:"stocked_out_on"`
+}
+
+// StockOutVehicle is POST /api/v1/vehicles/:id/stock-out.
+func StockOutVehicle(vehicles services.Vehicles) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if vehicles == nil {
+			return mapError(c, errNotConfigured("vehicles"))
+		}
+		var req stockOutRequest
+		if err := c.Bind(&req); err != nil {
+			return mapError(c, apperrors.ErrValidation)
+		}
+		vehicle, err := vehicles.StockOutVehicle(c.Request().Context(), c.Param("id"), req.StockedOutOn)
+		if err != nil {
+			return mapError(c, err)
+		}
+		return dto.Success(c, http.StatusOK, vehicle)
+	}
+}
+
 // GetVehicle is GET /api/v1/vehicles/:id.
 func GetVehicle(vehicles services.Vehicles) echo.HandlerFunc {
 	return func(c echo.Context) error {
