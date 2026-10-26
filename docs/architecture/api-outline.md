@@ -94,7 +94,7 @@ The vehicle starts in stock, with no proposed action and no primary image. `ente
 
 ### Correct
 
-`PATCH /api/v1/vehicles/:id` — **implemented**. It accepts a non-empty subset of `vin`, `model_id`, and `entered_on` while the vehicle is in stock. The UUID stays. The same command on a stocked-out vehicle is a conflict. This route rejects `proposed_action`, image, and `stocked_out_on`.
+`PATCH /api/v1/vehicles/:id` — **implemented**. It accepts a non-empty subset of `vin`, `model_id`, and `entered_on` while the vehicle is in stock. The UUID stays. The same command on a stocked-out vehicle is a conflict: the correction is rejected because the vehicle is stocked out. This route rejects `proposed_action`, image, and `stocked_out_on`.
 
 ### Commands
 

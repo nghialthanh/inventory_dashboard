@@ -78,7 +78,7 @@ func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin, modelID, 
 	if stored.StockedOutOn != nil {
 		return models.Vehicle{}, &apperrors.WithMessage{
 			Err:     apperrors.ErrConflict,
-			Message: "A stocked-out vehicle cannot be corrected.",
+			Message: "The correction is rejected because the vehicle is stocked out.",
 		}
 	}
 	var nextVIN, nextModelID *string

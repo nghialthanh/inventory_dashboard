@@ -635,6 +635,42 @@ func TestListFiltersByStockStateAndStockedOutOn(t *testing.T) {
 	assertAPIError(t, request(t, srv, http.MethodGet, "/api/v1/vehicles?stocked_out_on=10-10-2026"), http.StatusBadRequest, "VALIDATION_ERROR")
 }
 
+func TestCorrectionAfterStockOutIsRejectedAndFieldsStay(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+	created := recordVehicle(t, srv, civicVIN, civicID, "2026-07-01")
+	stockOutVehicle(t, srv, created.ID, "2026-10-10")
+
+	attempts := []string{
+		`{"vin":"` + secondVIN + `"}`,
+		`{"model_id":"` + f150ID + `"}`,
+		`{"entered_on":"2026-08-01"}`,
+		`{"vin":"` + secondVIN + `","model_id":"` + f150ID + `","entered_on":"2026-08-01"}`,
+	}
+	for _, body := range attempts {
+		rec := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, body)
+		assertAPIError(t, rec, http.StatusConflict, "CONFLICT")
+		var errBody errorJSON
+		if err := json.Unmarshal(rec.Body.Bytes(), &errBody); err != nil {
+			t.Fatal(err)
+		}
+		if errBody.Message != "The correction is rejected because the vehicle is stocked out." {
+			t.Fatalf("message = %q for body %s", errBody.Message, body)
+		}
+	}
+
+	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
+	if stayed.VIN != civicVIN || stayed.Model.ID != civicID || stayed.EnteredOn != "2026-07-01" {
+		t.Fatalf("identity changed after rejected corrections: %+v", stayed)
+	}
+	if stayed.StockState != "stocked_out" || stayed.StockedOutOn == nil || *stayed.StockedOutOn != "2026-10-10" {
+		t.Fatalf("stock state changed after rejected corrections: %+v", stayed)
+	}
+	if stayed.InventoryAge != 101 || stayed.IsAging {
+		t.Fatalf("stay = age %d aging %v, want 101 false", stayed.InventoryAge, stayed.IsAging)
+	}
+}
+
 func TestLaterStockOutReplacesTheDateAndClearingIsRejected(t *testing.T) {
 	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
 	srv := vehicleServer(t, today)

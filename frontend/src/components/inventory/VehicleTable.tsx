@@ -219,6 +219,12 @@ function VehicleView({ id }: { id: string }) {
           <dd>{row.has_primary_image ? "Yes" : "No primary image"}</dd>
         </div>
       </dl>
+      {row.stock_state === "stocked_out" ? (
+        <p className="mt-4 text-sm text-[#4e463c]">
+          VIN, model, and entered on cannot be corrected because the vehicle is
+          stocked out.
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-3">
         {row.stock_state === "in_stock" ? (
           <CorrectVehicleDialog vehicle={row} />
