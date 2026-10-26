@@ -30,10 +30,6 @@ _Avoid_: sold date, exit timestamp
 Whether a vehicle is in stock or stocked out.
 _Avoid_: status
 
-**Primary image**:
-The single optional picture of a vehicle.
-_Avoid_: gallery, photo set, attachment
-
 ### Tenure
 
 **Entered on**:

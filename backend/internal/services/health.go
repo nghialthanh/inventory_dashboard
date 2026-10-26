@@ -3,7 +3,7 @@
 // This package has no feature behavior and does not touch the database.
 package services
 
-// Health is process liveness. It does not check PostgreSQL or MinIO.
+// Health is process liveness. It does not check PostgreSQL.
 type Health interface {
 	Health() error
 }

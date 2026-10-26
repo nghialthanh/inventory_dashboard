@@ -2,12 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 
-	"inventory_dashboard/internal/common/constant"
 	apperrors "inventory_dashboard/internal/common/errors"
 	"inventory_dashboard/internal/dto"
 	"inventory_dashboard/internal/services"
@@ -112,73 +110,6 @@ func SetProposedAction(vehicles services.Vehicles) echo.HandlerFunc {
 			return mapError(c, err)
 		}
 		return dto.Success(c, http.StatusOK, vehicle)
-	}
-}
-
-// PutPrimaryImage is PUT /api/v1/vehicles/:id/primary-image.
-func PutPrimaryImage(vehicles services.Vehicles) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if vehicles == nil {
-			return mapError(c, errNotConfigured("vehicles"))
-		}
-		file, err := c.FormFile(constant.PrimaryImageField)
-		if err != nil {
-			return mapError(c, &apperrors.WithMessage{
-				Err:     apperrors.ErrValidation,
-				Message: "Upload a JPEG, PNG, or WebP image of at most 5 MiB.",
-			})
-		}
-		if file.Size > constant.PrimaryImageMaxBytes {
-			return mapError(c, &apperrors.WithMessage{
-				Err:     apperrors.ErrValidation,
-				Message: "Upload a JPEG, PNG, or WebP image of at most 5 MiB.",
-			})
-		}
-		src, err := file.Open()
-		if err != nil {
-			return mapError(c, apperrors.ErrValidation)
-		}
-		defer src.Close()
-		vehicle, err := vehicles.PutPrimaryImage(c.Request().Context(), c.Param("id"), file.Size, src)
-		if err != nil {
-			return mapError(c, err)
-		}
-		return dto.Success(c, http.StatusOK, vehicle)
-	}
-}
-
-// DeletePrimaryImage is DELETE /api/v1/vehicles/:id/primary-image.
-func DeletePrimaryImage(vehicles services.Vehicles) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if vehicles == nil {
-			return mapError(c, errNotConfigured("vehicles"))
-		}
-		vehicle, err := vehicles.DeletePrimaryImage(c.Request().Context(), c.Param("id"))
-		if err != nil {
-			return mapError(c, err)
-		}
-		return dto.Success(c, http.StatusOK, vehicle)
-	}
-}
-
-// GetPrimaryImage is GET /api/v1/vehicles/:id/primary-image.
-func GetPrimaryImage(vehicles services.Vehicles) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if vehicles == nil {
-			return mapError(c, errNotConfigured("vehicles"))
-		}
-		body, contentType, err := vehicles.OpenPrimaryImage(c.Request().Context(), c.Param("id"))
-		if err != nil {
-			return mapError(c, err)
-		}
-		defer body.Close()
-		c.Response().Header().Set(echo.HeaderCacheControl, "no-store")
-		if contentType != "" {
-			c.Response().Header().Set(echo.HeaderContentType, contentType)
-		}
-		c.Response().WriteHeader(http.StatusOK)
-		_, err = io.Copy(c.Response(), body)
-		return err
 	}
 }
 

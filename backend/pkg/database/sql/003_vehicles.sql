@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS vehicles (
     entered_on DATE NOT NULL,
     stocked_out_on DATE,
     proposed_action TEXT,
-    primary_image_key TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT vehicles_proposed_action_known CHECK (

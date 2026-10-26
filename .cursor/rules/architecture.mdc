@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Architecture
 
-Go API + React `frontend/`, PostgreSQL, private MinIO. Extend the existing modules. Words: `GLOSSARY.md`. Why: `docs/adr/`. Shape: `docs/architecture/`.
+Go API + React `frontend/`, PostgreSQL. Extend the existing modules. Words: `GLOSSARY.md`. Why: `docs/adr/`. Shape: `docs/architecture/`.
 
 HTTP adapters bind, call an interface in `internal/services`, and map errors. Logic in `backend/internal/logic/**` implements those interfaces. SQL lives in `backend/internal/repositories`. `internal/app/server.go` wires repositories into logic and passes the logic to the adapters. Before coding, read that path and `docs/architecture/directory-structure.md`.
 
@@ -19,9 +19,8 @@ HTTP adapters bind, call an interface in `internal/services`, and map errors. Lo
 | Stocked out | Row stays (ADR-0001). No return to in stock. VIN is never reused (ADR-0004) |
 | Identity | UUID in the URL. VIN unique. VIN correctable only while in stock (ADR-0006) |
 | Catalog | Vehicle stores `model_id` (ADR-0002) |
-| Commands | Stock-out, proposed action, and primary image are separate routes (ADR-0007) |
+| Commands | Stock-out and proposed action are separate routes (ADR-0007) |
 | Proposed action | Optional: price reduction planned, wholesale planned, or hold. A new value replaces the last |
-| Primary image | Optional. Key in Postgres, bytes in MinIO, bytes streamed by the API. JSON has `has_primary_image` only (ADR-0003, ADR-0008) |
 | Origin | `/api/v1` and the UI on one origin (ADR-0009) |
 
 Use glossary terms in code, API, UI, and docs. A behavior change updates the owning doc in the same change. An invariant change needs a new ADR. Tests cover aging boundaries, terminal stocked-out, VIN uniqueness, and command isolation.

@@ -17,8 +17,8 @@ Errors put `error_code` and optional `fields` in `data`. JSON is snake_case.
 | `error_code` | HTTP | When |
 |--------------|------|------|
 | `VALIDATION_ERROR` | 400 | Bad dates, VIN, enums, unknown model, illegal filter pair |
-| `NOT_FOUND` | 404 | Unknown vehicle, or a primary image that is not stored |
-| `CONFLICT` | 409 | Duplicate VIN; correction or image change after stock-out; clearing `stocked_out_on`; proposed action when the vehicle is not aging stock |
+| `NOT_FOUND` | 404 | Unknown vehicle |
+| `CONFLICT` | 409 | Duplicate VIN; correction after stock-out; clearing `stocked_out_on`; proposed action when the vehicle is not aging stock |
 | `INTERNAL_ERROR` | 500 | Unexpected |
 
 ## Health
@@ -53,12 +53,11 @@ List and detail share one shape, with embedded make and model:
   "stock_state": "in_stock",
   "inventory_age": 95,
   "is_aging": true,
-  "proposed_action": "price_reduction_planned",
-  "has_primary_image": true
+  "proposed_action": "price_reduction_planned"
 }
 ```
 
-`stock_state` is `in_stock` or `stocked_out`. `is_aging` is in stock and `inventory_age` > 90. No MinIO URL or object key.
+`stock_state` is `in_stock` or `stocked_out`. `is_aging` is in stock and `inventory_age` > 90.
 
 ### List
 
@@ -88,13 +87,13 @@ Sort is `entered_on` ascending, then `id` ascending. A page past the end is an e
 { "vin": "1HGCM82633A004352", "model_id": "…", "entered_on": "2026-01-10" }
 ```
 
-The vehicle starts in stock, with no proposed action and no primary image. `entered_on` is today or earlier. `model_id` must exist.
+The vehicle starts in stock, with no proposed action. `entered_on` is today or earlier. `model_id` must exist.
 
 **VIN:** trim, store uppercase, 17 characters, digits and letters except I, O, and Q. No check digit. Unique, including against a stocked-out vehicle.
 
 ### Correct
 
-`PATCH /api/v1/vehicles/:id` — **implemented**. It accepts a non-empty subset of `vin`, `model_id`, and `entered_on` while the vehicle is in stock. The UUID stays. The same command on a stocked-out vehicle is a conflict: the correction is rejected because the vehicle is stocked out. This route rejects `proposed_action`, image, and `stocked_out_on`.
+`PATCH /api/v1/vehicles/:id` — **implemented**. It accepts a non-empty subset of `vin`, `model_id`, and `entered_on` while the vehicle is in stock. The UUID stays. The same command on a stocked-out vehicle is a conflict: the correction is rejected because the vehicle is stocked out. This route rejects `proposed_action` and `stocked_out_on`.
 
 ### Commands
 
@@ -102,9 +101,6 @@ The vehicle starts in stock, with no proposed action and no primary image. `ente
 |--------|------|------|------|
 | POST | `/api/v1/vehicles/:id/stock-out` | `{ "stocked_out_on": "YYYY-MM-DD" }` | **implemented**. First call stocks out. A later call replaces the date. On or after `entered_on`, on or before today. Empty is rejected. Clearing it is a conflict: the departure stands. This is the only way to change `stocked_out_on` |
 | PUT | `/api/v1/vehicles/:id/proposed-action` | `{ "proposed_action": "wholesale_planned" }` | **implemented**. `price_reduction_planned`, `wholesale_planned`, `hold`, or empty to clear. Accepted only while the vehicle is aging stock. After stock-out the stored value remains on read and writes conflict |
-| PUT | `/api/v1/vehicles/:id/primary-image` | multipart field `file` | **implemented**. JPEG, PNG, or WebP, at most 5 MiB. In stock only. Replaces the previous object |
-| DELETE | `/api/v1/vehicles/:id/primary-image` | — | **implemented**. Removes the object and clears the key. In stock only |
-| GET | `/api/v1/vehicles/:id/primary-image` | — | **implemented**. Streams the bytes ([ADR-0008](../adr/0008-api-streams-images.md)). Not found when there is no key or no object. Still streams after stock-out |
 
 ## Static UI
 

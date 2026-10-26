@@ -14,14 +14,12 @@ flowchart LR
   subgraph compose["Docker Compose — one origin"]
     API[Go API + static UI]
     PG[(PostgreSQL)]
-    MINIO[(MinIO private)]
   end
   UI -->|same origin /api| API
   API --> PG
-  API --> MINIO
 ```
 
-The API serves `/api` and the built screen on one port. MinIO is not published. The browser loads a primary image through the API ([ADR-0008](../adr/0008-api-streams-images.md), [ADR-0009](../adr/0009-one-origin-under-api.md)).
+The API serves `/api` and the built screen on one port ([ADR-0009](../adr/0009-one-origin-under-api.md)).
 
 ## Modules
 
@@ -49,7 +47,6 @@ flowchart LR
 |--------|------|
 | Catalog | Seeded makes and models. A model belongs to one make |
 | Vehicle | VIN, model, entered on, stocked-out on, proposed action, inventory age, stock state, aging stock |
-| Media | Optional primary-image key and the MinIO object |
 | HTTP shell | REST envelope and the static React build |
 
 ## Where to read the rule
@@ -69,4 +66,3 @@ flowchart LR
 2. **Record or correct** — create an in-stock vehicle, or correct VIN, model, and entered on while it is in stock.
 3. **Act on aging stock** — set, replace, or clear a proposed action. Only aging stock accepts that command.
 4. **Stock out** — record stocked-out on. The row stays, aging stops, and a later call only corrects that date.
-5. **Picture** — attach, replace, or remove one primary image while in stock. A missing image is a placeholder.

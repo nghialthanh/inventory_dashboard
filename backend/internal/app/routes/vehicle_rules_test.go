@@ -1,31 +1,19 @@
 package routes_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"inventory_dashboard/internal/app/routes"
 	"inventory_dashboard/internal/logic/catalog"
-	"inventory_dashboard/internal/logic/media"
 	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
 	"inventory_dashboard/pkg/database"
-	"inventory_dashboard/pkg/storage"
-)
-
-// Tiny valid image sniff headers for primary-image HTTP tests.
-var (
-	tinyJPEG = []byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01}
-	tinyPNG  = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d}
-	tinyWebP = []byte("RIFF\x14\x00\x00\x00WEBPVP8 ")
 )
 
 const (
@@ -152,7 +140,7 @@ func TestStockedOutStayStopsAgeAndKeepsTheVIN(t *testing.T) {
 	catalogRepo := repositories.NewCatalog(pool)
 	srv := routes.New(routes.Config{
 		Catalog:  catalog.New(catalogRepo),
-		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, media.NewObjects(storage.NewMemory()), func() time.Time { return today }),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
 	})
 	rec := request(t, srv, http.MethodGet, "/api/v1/vehicles/"+id)
 	if rec.Code != http.StatusOK {
@@ -246,7 +234,7 @@ func TestAgingOnlyFilterAndInventoryAgeBoundaries(t *testing.T) {
 	catalogRepo := repositories.NewCatalog(pool)
 	srv := routes.New(routes.Config{
 		Catalog:  catalog.New(catalogRepo),
-		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, media.NewObjects(storage.NewMemory()), func() time.Time { return today }),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
 	})
 
 	age0 := recordVehicle(t, srv, civicVIN, civicID, "2026-10-26")
@@ -314,8 +302,8 @@ func assertCorrected(t *testing.T, body vehicleBody, id string) {
 	if v.EnteredOn != "2026-07-27" || v.StockedOutOn != nil || v.StockState != "in_stock" || v.InventoryAge != 91 || !v.IsAging {
 		t.Fatalf("stay = entered %s state %s age %d aging %v, want 2026-07-27 in_stock 91 true", v.EnteredOn, v.StockState, v.InventoryAge, v.IsAging)
 	}
-	if v.ProposedAction != nil || v.HasPrimaryImage {
-		t.Fatalf("proposed_action = %v has_primary_image = %v, want unchanged empty values", v.ProposedAction, v.HasPrimaryImage)
+	if v.ProposedAction != nil {
+		t.Fatalf("proposed_action = %v, want unchanged empty value", v.ProposedAction)
 	}
 }
 
@@ -354,8 +342,7 @@ func TestCorrectionKeepsASubsetAndRejectsOtherCommands(t *testing.T) {
 	mixed := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{
 		"entered_on": "2026-07-28",
 		"proposed_action": "hold",
-		"stocked_out_on": "2026-10-01",
-		"has_primary_image": true
+		"stocked_out_on": "2026-10-01"
 	}`)
 	assertAPIError(t, mixed, http.StatusBadRequest, "VALIDATION_ERROR")
 	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{}`), http.StatusBadRequest, "VALIDATION_ERROR")
@@ -364,7 +351,7 @@ func TestCorrectionKeepsASubsetAndRejectsOtherCommands(t *testing.T) {
 	if kept.ID != created.ID || kept.VIN != secondVIN || kept.EnteredOn != "2026-07-28" || kept.Model.Name != "F-150" {
 		t.Fatalf("vehicle changed after a rejected correction: %+v", kept)
 	}
-	if kept.StockedOutOn != nil || kept.ProposedAction != nil || kept.HasPrimaryImage || kept.StockState != "in_stock" {
+	if kept.StockedOutOn != nil || kept.ProposedAction != nil || kept.StockState != "in_stock" {
 		t.Fatalf("forbidden fields changed: %+v", kept)
 	}
 }
@@ -389,7 +376,7 @@ func TestCorrectedVINStaysUniqueAndEnteredOnCannotBeAfterToday(t *testing.T) {
 	catalogRepo := repositories.NewCatalog(pool)
 	srv := routes.New(routes.Config{
 		Catalog:  catalog.New(catalogRepo),
-		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, media.NewObjects(storage.NewMemory()), func() time.Time { return today }),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
 	})
 	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-26")
 	recordVehicle(t, srv, secondVIN, f150ID, "2026-10-02")
@@ -550,7 +537,7 @@ func TestDemoStockedOutVehicleIsPresentOnFirstOpen(t *testing.T) {
 	catalogRepo := repositories.NewCatalog(pool)
 	srv := routes.New(routes.Config{
 		Catalog:  catalog.New(catalogRepo),
-		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, media.NewObjects(storage.NewMemory()), func() time.Time { return today }),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
 	})
 
 	rec := request(t, srv, http.MethodGet, "/api/v1/vehicles/"+demoID)
@@ -812,163 +799,6 @@ func setProposedAction(t *testing.T, srv handler, id, value string) vehicleJSON 
 		t.Fatalf("proposed-action status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	return decodeVehicle(t, rec.Body.Bytes()).Data
-}
-
-func TestPrimaryImageAttachReplaceRemoveAndPayloadFlag(t *testing.T) {
-	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
-	srv := vehicleServer(t, today)
-	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-01")
-	if created.HasPrimaryImage {
-		t.Fatal("new vehicle has_primary_image = true, want false")
-	}
-
-	attachRec := putPrimaryImageRaw(t, srv, created.ID, "car.jpg", tinyJPEG)
-	if attachRec.Code != http.StatusOK {
-		t.Fatalf("put primary-image status = %d, body = %s", attachRec.Code, attachRec.Body.String())
-	}
-	if raw := attachRec.Body.String(); strings.Contains(raw, "primary_image_key") || strings.Contains(raw, "minio") {
-		t.Fatalf("vehicle JSON leaked storage location: %s", raw)
-	}
-	attached := decodeVehicle(t, attachRec.Body.Bytes()).Data
-	if !attached.HasPrimaryImage {
-		t.Fatal("after attach has_primary_image = false, want true")
-	}
-	got := getPrimaryImage(t, srv, created.ID)
-	if got.Code != http.StatusOK {
-		t.Fatalf("get image status = %d, body = %s", got.Code, got.Body.String())
-	}
-	if !bytes.Equal(got.Body.Bytes(), tinyJPEG) {
-		t.Fatalf("streamed bytes = %v, want attached jpeg", got.Body.Bytes())
-	}
-	if ct := got.Header().Get("Content-Type"); ct != "image/jpeg" {
-		t.Fatalf("content-type = %q, want image/jpeg", ct)
-	}
-
-	replaced := putPrimaryImage(t, srv, created.ID, "car.png", tinyPNG)
-	if !replaced.HasPrimaryImage {
-		t.Fatal("after replace has_primary_image = false, want true")
-	}
-	got = getPrimaryImage(t, srv, created.ID)
-	if !bytes.Equal(got.Body.Bytes(), tinyPNG) {
-		t.Fatalf("streamed bytes = %v, want replaced png", got.Body.Bytes())
-	}
-
-	cleared := deletePrimaryImage(t, srv, created.ID)
-	if cleared.HasPrimaryImage {
-		t.Fatal("after remove has_primary_image = true, want false")
-	}
-	assertAPIError(t, getPrimaryImage(t, srv, created.ID), http.StatusNotFound, "NOT_FOUND")
-}
-
-func TestPrimaryImageMissingIsNotFound(t *testing.T) {
-	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
-	srv := vehicleServer(t, today)
-	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-01")
-	assertAPIError(t, getPrimaryImage(t, srv, created.ID), http.StatusNotFound, "NOT_FOUND")
-	assertAPIError(t, getPrimaryImage(t, srv, "44444444-4444-4444-8444-444444444444"), http.StatusNotFound, "NOT_FOUND")
-}
-
-func TestPrimaryImageRejectsBadUploads(t *testing.T) {
-	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
-	srv := vehicleServer(t, today)
-	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-01")
-
-	assertAPIError(t, putPrimaryImageRaw(t, srv, created.ID, "note.txt", []byte("not-an-image")), http.StatusBadRequest, "VALIDATION_ERROR")
-	tooBig := append(append([]byte{}, tinyJPEG...), bytes.Repeat([]byte{0}, 5<<20)...)
-	assertAPIError(t, putPrimaryImageRaw(t, srv, created.ID, "big.jpg", tooBig), http.StatusBadRequest, "VALIDATION_ERROR")
-
-	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
-	if kept.HasPrimaryImage {
-		t.Fatal("rejected upload set has_primary_image")
-	}
-}
-
-func TestPrimaryImageWebPIsAccepted(t *testing.T) {
-	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
-	srv := vehicleServer(t, today)
-	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-01")
-	attached := putPrimaryImage(t, srv, created.ID, "car.webp", tinyWebP)
-	if !attached.HasPrimaryImage {
-		t.Fatal("webp attach has_primary_image = false, want true")
-	}
-	got := getPrimaryImage(t, srv, created.ID)
-	if got.Code != http.StatusOK || !bytes.Equal(got.Body.Bytes(), tinyWebP) {
-		t.Fatalf("webp stream status=%d bytes=%v", got.Code, got.Body.Bytes())
-	}
-}
-
-func TestPrimaryImageFrozenAfterStockOutButStillLoads(t *testing.T) {
-	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
-	srv := vehicleServer(t, today)
-	created := recordVehicle(t, srv, civicVIN, civicID, "2026-07-01")
-	putPrimaryImage(t, srv, created.ID, "car.jpg", tinyJPEG)
-	stockOutVehicle(t, srv, created.ID, "2026-10-10")
-
-	got := getPrimaryImage(t, srv, created.ID)
-	if got.Code != http.StatusOK || !bytes.Equal(got.Body.Bytes(), tinyJPEG) {
-		t.Fatalf("after stock-out stream status=%d", got.Code)
-	}
-	viewed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
-	if !viewed.HasPrimaryImage {
-		t.Fatal("after stock-out has_primary_image = false, want true")
-	}
-
-	assertAPIError(t, putPrimaryImageRaw(t, srv, created.ID, "car.png", tinyPNG), http.StatusConflict, "CONFLICT")
-	assertAPIError(t, deletePrimaryImageRaw(t, srv, created.ID), http.StatusConflict, "CONFLICT")
-
-	stayed := getPrimaryImage(t, srv, created.ID)
-	if !bytes.Equal(stayed.Body.Bytes(), tinyJPEG) {
-		t.Fatal("rejected mutate changed the stored image")
-	}
-}
-
-func putPrimaryImage(t *testing.T, srv handler, id, filename string, data []byte) vehicleJSON {
-	t.Helper()
-	rec := putPrimaryImageRaw(t, srv, id, filename, data)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("put primary-image status = %d, body = %s", rec.Code, rec.Body.String())
-	}
-	return decodeVehicle(t, rec.Body.Bytes()).Data
-}
-
-func putPrimaryImageRaw(t *testing.T, srv handler, id, filename string, data []byte) *httptest.ResponseRecorder {
-	t.Helper()
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
-	part, err := w.CreateFormFile("file", filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := part.Write(data); err != nil {
-		t.Fatal(err)
-	}
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/vehicles/"+id+"/primary-image", &body)
-	req.Header.Set("Content-Type", w.FormDataContentType())
-	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, req)
-	return rec
-}
-
-func deletePrimaryImage(t *testing.T, srv handler, id string) vehicleJSON {
-	t.Helper()
-	rec := deletePrimaryImageRaw(t, srv, id)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("delete primary-image status = %d, body = %s", rec.Code, rec.Body.String())
-	}
-	return decodeVehicle(t, rec.Body.Bytes()).Data
-}
-
-func deletePrimaryImageRaw(t *testing.T, srv handler, id string) *httptest.ResponseRecorder {
-	t.Helper()
-	return request(t, srv, http.MethodDelete, "/api/v1/vehicles/"+id+"/primary-image")
-}
-
-func getPrimaryImage(t *testing.T, srv handler, id string) *httptest.ResponseRecorder {
-	t.Helper()
-	return request(t, srv, http.MethodGet, "/api/v1/vehicles/"+id+"/primary-image")
 }
 
 func TestLaterStockOutReplacesTheDateAndClearingIsRejected(t *testing.T) {

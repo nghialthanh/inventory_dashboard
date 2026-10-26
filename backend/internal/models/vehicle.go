@@ -10,30 +10,27 @@ type Ref struct {
 
 // Vehicle is the list and detail shape.
 type Vehicle struct {
-	ID              string  `json:"id"`
-	VIN             string  `json:"vin"`
-	Make            Ref     `json:"make"`
-	Model           Ref     `json:"model"`
-	EnteredOn       string  `json:"entered_on"`
-	StockedOutOn    *string `json:"stocked_out_on"`
-	StockState      string  `json:"stock_state"`
-	InventoryAge    int     `json:"inventory_age"`
-	IsAging         bool    `json:"is_aging"`
-	ProposedAction  *string `json:"proposed_action"`
-	HasPrimaryImage bool    `json:"has_primary_image"`
+	ID             string  `json:"id"`
+	VIN            string  `json:"vin"`
+	Make           Ref     `json:"make"`
+	Model          Ref     `json:"model"`
+	EnteredOn      string  `json:"entered_on"`
+	StockedOutOn   *string `json:"stocked_out_on"`
+	StockState     string  `json:"stock_state"`
+	InventoryAge   int     `json:"inventory_age"`
+	IsAging        bool    `json:"is_aging"`
+	ProposedAction *string `json:"proposed_action"`
 }
 
 // StoredVehicle is a vehicle row before derived fields are applied.
 type StoredVehicle struct {
-	ID              string
-	VIN             string
-	Make            Ref
-	Model           Ref
-	EnteredOn       time.Time
-	StockedOutOn    *time.Time
-	ProposedAction  *string
-	PrimaryImageKey *string
-	HasPrimaryImage bool
+	ID             string
+	VIN            string
+	Make           Ref
+	Model          Ref
+	EnteredOn      time.Time
+	StockedOutOn   *time.Time
+	ProposedAction *string
 }
 
 // VehiclePage is one page of the inventory list.

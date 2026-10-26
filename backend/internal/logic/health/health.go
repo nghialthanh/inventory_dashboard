@@ -1,6 +1,6 @@
 package health
 
-// Health is process liveness. It does not check PostgreSQL or MinIO.
+// Health is process liveness. It does not check PostgreSQL.
 type Health struct{}
 
 // New returns the liveness check.

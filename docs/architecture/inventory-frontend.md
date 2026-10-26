@@ -9,13 +9,12 @@ React + TypeScript dashboard in `frontend/`. The shell route is `/`, rendered by
 | Styling | Tailwind 4 |
 | Routing | React Router 7. The shell route is `/` |
 | API | Client to `/api/v1`, envelope unwrapped |
-| Images | Same-origin `GET …/primary-image` |
 
 Compose serves the production build from the API ([ADR-0009](../adr/0009-one-origin-under-api.md)). The dev proxy is in place.
 
 ## Screens
 
-The inventory list is the workspace. Create, correct, stock-out, proposed action, and primary image are dialogs or drawers. Labels use [GLOSSARY.md](../../GLOSSARY.md).
+The inventory list is the workspace. Create, correct, stock-out, and proposed action are dialogs. Labels use [GLOSSARY.md](../../GLOSSARY.md).
 
 | Component | Role |
 |-----------|------|
@@ -24,5 +23,4 @@ The inventory list is the workspace. Create, correct, stock-out, proposed action
 | `VehicleTable` or `VehicleCards` | List, with aging emphasis |
 | `AgingBadge` | Driven by `is_aging` |
 | `ProposedActionControl` | Proposed-action command |
-| `PrimaryImage` | Streamed image or placeholder |
 | `StockOutDialog` | Calendar day and confirm |

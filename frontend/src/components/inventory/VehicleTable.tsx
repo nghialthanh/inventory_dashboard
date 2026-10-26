@@ -5,7 +5,6 @@ import { useVehicle } from "../../lib/data";
 import { proposedActionLabel } from "../../lib/proposedAction";
 import { AgingBadge } from "./AgingBadge";
 import { CorrectVehicleDialog } from "./CorrectVehicleDialog";
-import { PrimaryImage } from "./PrimaryImage";
 import { ProposedActionControl } from "./ProposedActionControl";
 import { StockOutDialog } from "./StockOutDialog";
 
@@ -64,7 +63,7 @@ export function VehicleTable({
         <p className="px-5 py-8 text-[#4e463c]">No vehicles</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[64rem] border-collapse text-left text-sm">
+          <table className="w-full min-w-[56rem] border-collapse text-left text-sm">
             <thead className="text-[#4e463c]">
               <tr className="border-b border-[#efeae1]">
                 <th className="px-4 py-3 font-medium">VIN</th>
@@ -76,7 +75,6 @@ export function VehicleTable({
                 <th className="px-4 py-3 font-medium">Inventory age</th>
                 <th className="px-4 py-3 font-medium">Aging stock</th>
                 <th className="px-4 py-3 font-medium">Proposed action</th>
-                <th className="px-4 py-3 font-medium">Primary image</th>
               </tr>
             </thead>
             <tbody>
@@ -152,13 +150,10 @@ function VehicleRows({
         <td className="px-4 py-3">
           {proposedActionLabel(vehicle.proposed_action)}
         </td>
-        <td className="px-4 py-3">
-          <PrimaryImage vehicle={vehicle} compact />
-        </td>
       </tr>
       {open ? (
         <tr>
-          <td colSpan={10} className="bg-[#f6f1e7] px-4 py-4">
+          <td colSpan={9} className="bg-[#f6f1e7] px-4 py-4">
             <VehicleView id={vehicle.id} />
           </td>
         </tr>
@@ -222,12 +217,10 @@ function VehicleView({ id }: { id: string }) {
           <dd>{proposedActionLabel(row.proposed_action)}</dd>
         </div>
       </dl>
-      <PrimaryImage vehicle={row} />
       {row.stock_state === "stocked_out" ? (
         <p className="mt-4 text-sm text-[#4e463c]">
           VIN, model, and entered on cannot be corrected because the vehicle is
-          stocked out. The last proposed action stays as recorded. The primary
-          image still loads and cannot be changed.
+          stocked out. The last proposed action stays as recorded.
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">

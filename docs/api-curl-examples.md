@@ -67,15 +67,3 @@ curl -s -X POST "$BASE/api/v1/vehicles/$ID/stock-out" \
   -H 'Content-Type: application/json' \
   -d '{"stocked_out_on":"2026-10-26"}' | jq .
 ```
-
-## Primary image
-
-```bash
-curl -s -X PUT "$BASE/api/v1/vehicles/$ID/primary-image" \
-  -F "file=@./sample.jpg;type=image/jpeg" -o /dev/null -w "%{http_code}\n"
-
-curl -s -o /tmp/primary.jpg -w "%{http_code}\n" \
-  "$BASE/api/v1/vehicles/$ID/primary-image"
-
-curl -s -X DELETE "$BASE/api/v1/vehicles/$ID/primary-image" | jq .
-```

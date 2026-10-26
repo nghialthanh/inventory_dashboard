@@ -64,7 +64,7 @@ Tooling: **Cursor** (chat + agents + rules under `.cursor/rules/`).
 
 **What I asked**
 
-- Propose ADRs for irreversible choices (retain stocked-out rows, catalog via seed, MinIO for images, UUID in URL, separate commands, one origin, API streams images).
+- Propose ADRs for irreversible choices (retain stocked-out rows, catalog via seed, UUID in URL, separate commands, one origin). Object storage was considered and later dropped ([ADR-0010](adr/0010-no-object-storage.md)).
 
 **How I refined**
 
@@ -73,7 +73,7 @@ Tooling: **Cursor** (chat + agents + rules under `.cursor/rules/`).
 
 **Output**
 
-- [docs/adr/](adr/) (0001–0009)
+- [docs/adr/](adr/) (0001–0010)
 
 ---
 
@@ -122,7 +122,7 @@ I implemented features in the same order as the issue list, with the AI writing 
 
 **Prompt pattern**
 
-> “Compose: Postgres + MinIO + Go API serving `/api` and static UI on one origin. Health outside `/api/v1`. Follow ADR-0009.”
+> “Compose: Postgres + Go API serving `/api` and static UI on one origin. Health outside `/api/v1`. Follow ADR-0009.”
 
 **Verify**
 
@@ -194,15 +194,9 @@ I implemented features in the same order as the issue list, with the AI writing 
 
 ---
 
-### Step 12 — Primary image
+### Step 12 — Primary image (removed)
 
-**Prompt pattern**
-
-> “Bytes in MinIO; key in Postgres; GET streams via API. JSON has has_primary_image only. In stock for mutate.”
-
-**Verify**
-
-- Upload / replace / delete / missing image tests (no public MinIO URL)
+An optional image slice was drafted against MinIO. [ADR-0010](adr/0010-no-object-storage.md) removed object storage, the image routes, and the `primary_image_key` column. Compose is Postgres and the API only.
 
 ---
 
@@ -303,7 +297,7 @@ I still submit **backend** as the chosen service layer; the UI is a live client.
 
 | GenAI accelerated | I owned |
 |-------------------|---------|
-| First drafts of ADRs, API outline, SQL, handlers, tests | Final ADR wording and tech choice (Go, Postgres, MinIO, modular monolith) |
+| First drafts of ADRs, API outline, SQL, handlers, tests | Final ADR wording and tech choice (Go, Postgres, modular monolith). MinIO was dropped in ADR-0010 |
 | Boilerplate and test scaffolding | Pass/fail on acceptance criteria |
 | Doc packaging (SDD, cURL examples) | Whether FE is “bonus” vs graded layer |
 | Observability wiring (zap, middleware) | What must be logged vs kept quiet (4xx) |

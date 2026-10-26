@@ -7,6 +7,6 @@ alwaysApply: true
 
 `frontend/` is the only UI and owns presentation. Shape Go DTOs to the screen. Change page markup only when the API cannot express the feature; then keep the existing layout and update `docs/architecture/frontend-backend-mapping.md`.
 
-Wire data through thin hooks and adapters. Load the primary image from the API stream on the same origin.
+Wire data through thin hooks and adapters.
 
 Detail: `docs/architecture/frontend-integration.md`.

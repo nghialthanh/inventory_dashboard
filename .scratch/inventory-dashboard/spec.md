@@ -8,12 +8,12 @@ A dealership manager can see which vehicles the dealership holds, which of those
 
 ## Solution
 
-A single local application: a React inventory screen and a Go REST API on one origin, with PostgreSQL as the source of truth and a private MinIO bucket for an optional primary image. The manager works from an inventory list. Filters, aging stock, stock state, and inventory age all come from the API. Stock-out, proposed action, and the primary image are separate commands. Stock state is derived from whether stocked-out on is set. A stocked-out vehicle stays stocked out, and its VIN is never recorded again.
+A single local application: a React inventory screen and a Go REST API on one origin, with PostgreSQL as the source of truth. The manager works from an inventory list. Filters, aging stock, stock state, and inventory age all come from the API. Stock-out and proposed action are separate commands. Stock state is derived from whether stocked-out on is set. A stocked-out vehicle stays stocked out, and its VIN is never recorded again.
 
 ## User Stories
 
 1. As a dealership manager, I want to see every vehicle the dealership has recorded, including vehicles that have stocked out, so that departure does not erase the inventory.
-2. As a dealership manager, I want each vehicle to show its VIN, make, model, entered on, stocked-out on, stock state, inventory age, whether it is aging stock, its proposed action, and whether it has a primary image, so that I can judge it from the list.
+2. As a dealership manager, I want each vehicle to show its VIN, make, model, entered on, stocked-out on, stock state, inventory age, whether it is aging stock, and its proposed action, so that I can judge it from the list.
 3. As a dealership manager, I want make and model names on each row, so that I do not look them up separately.
 4. As a dealership manager, I want to filter the list by make, so that I can focus on one manufacturer.
 5. As a dealership manager, I want to filter the list by model, so that I can focus on one vehicle line.
@@ -36,7 +36,7 @@ A single local application: a React inventory screen and a Go REST API on one or
 22. As a dealership manager, I want inventory age for a stocked-out vehicle to stop on stocked-out on, so that days after departure do not count.
 23. As a dealership manager, I want to choose make and model from a seeded catalog, so that a vehicle cannot be stored under a mistyped or impossible pair.
 24. As a dealership manager, I want to record a new in-stock vehicle with a VIN, a catalog model, and entered on, so that the car enters inventory.
-25. As a dealership manager, I want a new vehicle to start with no proposed action and no primary image, so that I record those only when I decide to.
+25. As a dealership manager, I want a new vehicle to start with no proposed action, so that I record that only when I decide to.
 26. As a dealership manager, I want a duplicate VIN to be rejected, including a VIN that belongs to a stocked-out vehicle, so that a VIN is never reused.
 27. As a dealership manager, I want two attempts to record the same VIN at the same time to create only one vehicle, so that the VIN stays unique under concurrency.
 28. As a dealership manager, I want a future entered on to be rejected, so that inventory age cannot start in the future.
@@ -46,7 +46,7 @@ A single local application: a React inventory screen and a Go REST API on one or
 32. As a dealership manager, I want to correct the VIN while the vehicle is in stock, so that a typo does not become a second vehicle.
 33. As a dealership manager, I want to correct the model while the vehicle is in stock, so that a catalog mistake can be fixed.
 34. As a dealership manager, I want to correct entered on while the vehicle is in stock, so that inventory age uses the real arrival day.
-35. As a dealership manager, I want a correction to leave proposed action, primary image, and stocked-out on unchanged, so that those stay on their own commands.
+35. As a dealership manager, I want a correction to leave proposed action and stocked-out on unchanged, so that those stay on their own commands.
 36. As a dealership manager, I want a correction of VIN, model, or entered on to be rejected once the vehicle is stocked out, so that a departed vehicle's identity and tenure stay fixed.
 37. As a dealership manager, I want to record the calendar day a vehicle stocked out, so that it leaves in-stock inventory and stays on record.
 38. As a dealership manager, I want that vehicle to remain listed as stocked out, so that stock-out is not a deletion.
@@ -65,41 +65,32 @@ A single local application: a React inventory screen and a Go REST API on one or
 51. As a dealership manager, I want the last proposed action to remain visible after the vehicle stocks out, so that I can still see what had been intended.
 52. As a dealership manager, I want changing the proposed action after stock-out to be rejected, so that the intention stays as it was when the vehicle left.
 53. As a dealership manager, I want any proposed action outside the three named intentions to be rejected, so that the vocabulary stays closed.
-54. As a dealership manager, I want to attach one primary image to an in-stock vehicle, so that the list is easier to scan.
-55. As a dealership manager, I want to replace that primary image while the vehicle is in stock, so that an updated photo becomes the one picture.
-56. As a dealership manager, I want to remove the primary image while the vehicle is in stock, so that the vehicle can go back to having none.
-57. As a dealership manager, I want a vehicle with no primary image to remain valid, so that a photo is optional.
-58. As a dealership manager, I want a placeholder when a vehicle has no primary image, so that the list still lays out cleanly.
-59. As a dealership manager, I want the picture to load from the dashboard's own address, so that I never follow a storage link.
-60. As a dealership manager, I want a request for a missing primary image to be not found, so that the screen can keep the placeholder.
-61. As a dealership manager, I want attaching, replacing, or removing a primary image to be rejected once the vehicle is stocked out, so that the only correction after departure is the stocked-out on date.
-62. As a dealership manager, I want a primary image that was already attached to keep streaming after stock-out, so that the retained record still shows the picture.
-63. As a dealership manager, I want a duplicate VIN to say that the VIN is already used, so that I know why the vehicle was not recorded.
-64. As a dealership manager, I want an attempt to reopen a stocked-out vehicle to say that the departure stands, so that I know the stock state cannot be reversed.
-65. As a dealership manager, I want an unknown vehicle address to say the vehicle was not found, so that I know the link is stale.
-66. As a dealership manager, I want a model that does not belong to the selected make to be rejected as a bad filter, so that I do not mistake that mistake for an empty inventory.
-67. As a dealership manager, I want the dashboard and the inventory API on one address, so that I open a single local site.
+54. As a dealership manager, I want a duplicate VIN to say that the VIN is already used, so that I know why the vehicle was not recorded.
+55. As a dealership manager, I want an attempt to reopen a stocked-out vehicle to say that the departure stands, so that I know the stock state cannot be reversed.
+56. As a dealership manager, I want an unknown vehicle address to say the vehicle was not found, so that I know the link is stale.
+57. As a dealership manager, I want a model that does not belong to the selected make to be rejected as a bad filter, so that I do not mistake that mistake for an empty inventory.
+58. As a dealership manager, I want the dashboard and the inventory API on one address, so that I open a single local site.
 
 ## Implementation Decisions
 
 Routes, bodies, VIN, paging, and errors: `docs/architecture/api-outline.md`. Tables and derived fields: `docs/architecture/database-schema.md`. UI stack: `docs/architecture/inventory-frontend.md`. Keep those aligned with this spec.
 
-- One modular monolith: catalog, vehicle, media, and the HTTP shell. Handlers bind input, call a service, and map errors. Inventory age, aging stock, terminal stocked-out, and VIN uniqueness live in the vehicle module.
+- One modular monolith: catalog, vehicle, and the HTTP shell. Handlers bind input, call a service, and map errors. Inventory age, aging stock, terminal stocked-out, and VIN uniqueness live in the vehicle module.
 - The screen renders `stock_state`, `inventory_age`, and `is_aging` from the API and does not apply a second aging rule.
-- Local Compose runs PostgreSQL, unpublished MinIO, and the API on port 8080, serving `/api` and the built screen. No accounts, roles, or TLS. A local UI dev server may proxy `/api`.
+- Local Compose runs PostgreSQL and the API on port 8080, serving `/api` and the built screen. No accounts, roles, or TLS. A local UI dev server may proxy `/api`.
 - Seed a small make and model catalog, plus demo vehicles at inventory age 0, exactly 90 days, 91 days, and a stocked-out vehicle whose stay was longer than 90 days.
 
 ## Testing Decisions
 
 - A good test exercises the HTTP API as a black box. It sends the request a manager's screen would send and asserts the status, the envelope, the derived fields (`stock_state`, `inventory_age`, `is_aging`), and `error_code`. It does not assert SQL, handler structure, or React output.
-- The module under test is the API. Catalog reads, vehicle commands, aging stock, and primary-image behavior are all observed through `/api/v1`. PostgreSQL is the real store. The test sets the clock to a fixed UTC date. Image bytes are uploaded and fetched through the image routes. The test does not open MinIO itself and does not drive the screen.
-- There are no existing tests to copy. Cover the external behavior of the stories above, including these boundaries: entered today is age 0 and not aging stock; exactly 90 days in stock is not aging stock; 91 days in stock is aging stock; a stocked-out vehicle with a stay over 90 days is not aging stock and its inventory age stops on stocked-out on; a second create with the same VIN conflicts; a correction after stock-out conflicts; clearing stocked-out on conflicts; a proposed action is accepted only for aging stock; a mixed correction that includes proposed action, image, or stock-out fields is rejected; a missing primary image fetches as not found; vehicle JSON has `has_primary_image` and no storage location.
+- The module under test is the API. Catalog reads, vehicle commands, and aging stock are all observed through `/api/v1`. PostgreSQL is the real store. The test sets the clock to a fixed UTC date. The test does not drive the screen.
+- There are no existing tests to copy. Cover the external behavior of the stories above, including these boundaries: entered today is age 0 and not aging stock; exactly 90 days in stock is not aging stock; 91 days in stock is aging stock; a stocked-out vehicle with a stay over 90 days is not aging stock and its inventory age stops on stocked-out on; a second create with the same VIN conflicts; a correction after stock-out conflicts; clearing stocked-out on conflicts; a proposed action is accepted only for aging stock; a mixed correction that includes proposed action or stock-out fields is rejected.
 - Do not add a second automated seam in the vehicle logic packages or in the React app for the same rules. The screen is checked by using it against this API.
 
 ## Out of Scope
 
 - Returning a stocked-out vehicle to in stock, including a deal that falls through.
-- A gallery of more than one image, a pasted image URL, or publishing MinIO to the browser.
+- Vehicle images and object storage ([ADR-0010](../../docs/adr/0010-no-object-storage.md)).
 - Editing the make and model catalog from the screen, or free-text make and model on the vehicle.
 - Prices, executing a price reduction, or executing a wholesale sale. Proposed action records intention only.
 - Accounts, roles, multi-tenant access, TLS, and other production hardening.
@@ -111,4 +102,4 @@ Routes, bodies, VIN, paging, and errors: `docs/architecture/api-outline.md`. Tab
 
 ## Further Notes
 
-Glossary, ADRs 0001–0009, and the architecture docs are accepted. Application code is not scaffolded yet. The closed picks (no auth, `GET /health`, stock-out date correction, aging-only proposed action, image upload limits, UTC clock, list sort) are recorded in `docs/architecture/api-outline.md`.
+Glossary, ADRs 0001–0010, and the architecture docs are accepted. Application code is not scaffolded yet. The closed picks (no auth, `GET /health`, stock-out date correction, aging-only proposed action, UTC clock, list sort) are recorded in `docs/architecture/api-outline.md`.

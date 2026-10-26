@@ -8,14 +8,13 @@ alwaysApply: false
 
 Put `*_test.go` beside the code. Run `cd backend && go test ./...`.
 
-A good test calls the HTTP API and asserts the status, the envelope, `stock_state`, `inventory_age`, `is_aging`, and `error_code`. It sets a fixed UTC clock. Image tests use the image routes and do not open MinIO.
+A good test calls the HTTP API and asserts the status, the envelope, `stock_state`, `inventory_age`, `is_aging`, and `error_code`. It sets a fixed UTC clock.
 
 | Change | Cover |
 |--------|--------|
 | Aging | Age 0 is not aging. 90 days in stock is not aging. 91 is. Stocked-out age stops on `stocked_out_on` and is not aging |
 | Stock-out | The row stays stocked out. The same VIN conflicts. Clearing `stocked_out_on` conflicts |
 | VIN | Unique, including against stocked-out rows. Correctable while in stock. URL id stays |
-| Commands | Stock-out, proposed action, and image are rejected on the wrong route |
-| Image | A missing image is not found. JSON has `has_primary_image` only |
+| Commands | Stock-out and proposed action are rejected on the wrong route |
 
 Check the screen against this API. Do not add a second suite that repeats the same rules in React.

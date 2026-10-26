@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [x] The manager records a vehicle with a VIN, a catalog model, and entered on, and it starts in stock with no proposed action and no primary image
-- [x] The list and the vehicle view show VIN, make, model, entered on, an empty stocked-out on, stock state, inventory age, whether it is aging stock, proposed action, and whether it has a primary image
+- [x] The manager records a vehicle with a VIN, a catalog model, and entered on, and it starts in stock with no proposed action
+- [x] The list and the vehicle view show VIN, make, model, entered on, an empty stocked-out on, stock state, inventory age, whether it is aging stock, and proposed action
 - [x] Make and model names appear on the row
 - [x] The list is ordered by entered on, earliest first, then by vehicle id
 - [x] The manager can page the list. The default page is 1 and the default page size is 20. Page size is capped at 100. A page past the end is empty and still reports the true total

@@ -20,14 +20,12 @@ flowchart LR
   subgraph compose["Docker Compose"]
     API["Go API + static UI\n:8080"]
     PG[(PostgreSQL)]
-    MINIO[(MinIO — private)]
   end
   Browser -->|same origin /api/v1, /health| API
   API --> PG
-  API --> MINIO
 ```
 
-The API serves `/api` and the built screen on one port. MinIO is not published to the host. Primary image bytes are streamed by the API ([ADR-0008](adr/0008-api-streams-images.md), [ADR-0009](adr/0009-one-origin-under-api.md)).
+The API serves `/api` and the built screen on one port ([ADR-0009](adr/0009-one-origin-under-api.md)).
 
 ### Application layers (modular monolith)
 
@@ -37,19 +35,15 @@ flowchart TB
   IFACE[services — interfaces only]
   LOGIC[logic — domain rules]
   REPO[repositories — SQL]
-  MEDIA[media — MinIO objects]
   PG[(PostgreSQL)]
-  BLOB[(MinIO)]
 
   HTTP --> IFACE
   IFACE --> LOGIC
   LOGIC --> REPO
-  LOGIC --> MEDIA
   REPO --> PG
-  MEDIA --> BLOB
 ```
 
-`internal/app/server.go` is the composition root: it opens Postgres and MinIO, builds repositories and logic, and passes logic into the HTTP adapter as service interfaces.
+`internal/app/server.go` is the composition root: it opens Postgres, builds repositories and logic, and passes logic into the HTTP adapter as service interfaces.
 
 ---
 
@@ -60,12 +54,10 @@ flowchart TB
 | **Browser / test harness / cURL** | Consumes the REST API. The React UI is optional for assessment; HTTP tests and cURL are the contract clients. |
 | **Go HTTP adapter** (`backend/api`) | Binds JSON, calls a service interface, maps domain errors to the envelope (`VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`). No inventory rules. |
 | **Services** (`internal/services`) | Feature interfaces only — no SQL, no HTTP. |
-| **Logic** (`internal/logic`) | Owns VIN rules, inventory age, aging stock, stock-out, proposed action, and primary-image commands. Implements the service interfaces. |
+| **Logic** (`internal/logic`) | Owns VIN rules, inventory age, aging stock, stock-out, and proposed action. Implements the service interfaces. |
 | **Repositories** (`internal/repositories`) | Queries and commands against PostgreSQL. |
-| **Media** (`internal/logic/media` + `pkg/storage`) | Puts, gets, and deletes the primary-image object; Postgres stores only the object key. |
 | **PostgreSQL** | System of record for catalog and vehicles. |
-| **MinIO** | Private object store for primary image bytes. |
-| **Docker Compose** | Local runtime: Postgres, MinIO, API (+ static UI) on one origin. |
+| **Docker Compose** | Local runtime: Postgres and the API (+ static UI) on one origin. |
 | **Catalog (seeded)** | Read-only makes and models; daily use does not edit the catalog ([ADR-0002](adr/0002-model-catalog.md)). |
 
 ### Feature modules
@@ -74,7 +66,6 @@ flowchart TB
 |--------|------|
 | Catalog | List makes / models |
 | Vehicle | Record, correct, list/filter, stock-out, proposed action, derived stock state / inventory age / aging |
-| Media | Optional primary image |
 | Health | Process liveness (`GET /health`) |
 
 ---
@@ -118,7 +109,6 @@ Derived fields are computed in logic, not stored as columns: **in stock** means 
 |--------|------|
 | Stock out | `POST …/stock-out` → set `stocked_out_on` → age freezes; row retained ([ADR-0001](adr/0001-retain-stocked-out-vehicles.md), [ADR-0007](adr/0007-separate-commands.md)) |
 | Proposed action | `PUT …/proposed-action` → accepted only while aging stock |
-| Primary image | `PUT/DELETE/GET …/primary-image` → MinIO bytes + key in Postgres; GET streams through the API |
 
 ---
 
@@ -130,7 +120,6 @@ Derived fields are computed in logic, not stored as columns: **in stock** means 
 | **Echo** | Lightweight HTTP framework; routing and middleware without a heavy DI container. |
 | **PostgreSQL** | Relational integrity for VIN uniqueness, foreign keys to catalog, calendar `DATE` for inventory age, mature tooling. |
 | **pgx** | Efficient Postgres driver and pool for Go. |
-| **MinIO** | S3-compatible private object storage for images without exposing a public bucket ([ADR-0003](adr/0003-primary-image-in-minio.md)). |
 | **Docker Compose** | Reproducible local environment matching “one origin” deployment. |
 | **React + TypeScript** (bonus client) | Optional UI for demos; not the assessed layer. Same-origin `/api/v1` keeps CORS out of the critical path. |
 | **TanStack Query** (UI) | Server-state caching aligned to REST resources. |
@@ -156,9 +145,9 @@ Derived fields are computed in logic, not stored as columns: **in stock** means 
 |--------|----------|
 | **Metrics** | RED-style: request rate, error rate (4xx/5xx by route), latency histograms; plus business counters (vehicles recorded, stock-outs, proposed-action writes). Export Prometheus when deployed beyond Compose. |
 | **Distributed tracing** | Optional OpenTelemetry spans on top of the existing `trace_id` context key for cross-service hops later. |
-| **Readiness** | Optional `/ready` that checks Postgres ping (and MinIO) so load balancers do not send traffic before migrations and bucket ensure complete. |
+| **Readiness** | Optional `/ready` that checks a Postgres ping so load balancers do not send traffic before migrations complete. |
 
-**Operational principles:** domain validation stays `400` with stable `error_code` (not log noise); unexpected failures are `500` + logged with `trace_id`; image streaming failures must not leak MinIO URLs.
+**Operational principles:** domain validation stays `400` with stable `error_code` (not log noise); unexpected failures are `500` + logged with `trace_id`.
 
 ---
 
@@ -166,9 +155,9 @@ Derived fields are computed in logic, not stored as columns: **in stock** means 
 
 | Concern | Current design | Evolution |
 |---------|----------------|-----------|
-| **Scalability** | Single API process; list paging (`page` / `page_size` max 100); indexes on VIN, model, stocked-out on | Read replicas for list; object CDN only behind the API if needed; horizontal API replicas with shared Postgres/MinIO |
+| **Scalability** | Single API process; list paging (`page` / `page_size` max 100); indexes on VIN, model, stocked-out on | Read replicas for list; horizontal API replicas with shared Postgres |
 | **Performance** | Derived aging in logic; aging filter uses a date bound in SQL | Add covering indexes if filters grow; avoid N+1 by embedding make/model in list queries |
-| **Reliability** | Unique VIN; terminal stock-out; retries on DB/MinIO connect at startup; row retained after departure | Outbox or async for heavy image work if upload volume grows; backups for Postgres and bucket |
+| **Reliability** | Unique VIN; terminal stock-out; retries on database connect at startup; row retained after departure | Backups for Postgres |
 | **Maintainability** | Glossary + ADRs + layered packages; separate command routes | Keep invariants in logic tests; extend catalog via seed, not free text |
 | **Observability** | Health + zap + `trace_id` through layers | Metrics, OTel spans as above |
 
@@ -180,8 +169,8 @@ GenAI (Cursor agents) was used as a **design accelerator**, not as an unchecked 
 
 **How it helped**
 
-- Turned the scenario brief into a glossary of domain terms and a first cut of modules (catalog, vehicle, media, HTTP shell).
-- Drafted candidate ADRs (stock-out terminal, stock state from `stocked_out_on`, separate commands, one origin, API-streamed images) for human review.
+- Turned the scenario brief into a glossary of domain terms and a first cut of modules (catalog, vehicle, HTTP shell).
+- Drafted candidate ADRs (stock-out terminal, stock state from `stocked_out_on`, separate commands, one origin) for human review. Object storage was drafted and later dropped ([ADR-0010](adr/0010-no-object-storage.md)).
 - Proposed API outline shapes (envelope, filters, aging threshold) aligned to the glossary.
 - Suggested directory layout matching adapter → services → logic → repository.
 

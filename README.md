@@ -2,7 +2,7 @@
 
 Dealership **inventory dashboard**: filter vehicles, identify **aging stock** (in stock more than 90 days), and record a **proposed action**.
 
-**Assessment choice:** this repository’s graded service layer is the **backend** (REST API + PostgreSQL + private MinIO). A React UI is included as a live client for demos; you can exercise the API with the test suite or [cURL examples](docs/api-curl-examples.md) instead.
+**Assessment choice:** this repository’s graded service layer is the **backend** (REST API + PostgreSQL). A React UI is included as a live client for demos; you can exercise the API with the test suite or [cURL examples](docs/api-curl-examples.md) instead.
 
 **System design (Part 1):** [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)
 
@@ -13,7 +13,6 @@ Dealership **inventory dashboard**: filter vehicles, identify **aging stock** (i
 | Backend (assessed) | Golang modular monolith, REST |
 | Logging | zap + `X-Trace-ID` on context through handler → logic → repository |
 | Database | PostgreSQL |
-| Images | MinIO (private; streamed by the API) |
 | Frontend (bonus client) | React + TypeScript |
 | Local run | Docker Compose — API and UI on port 8080 |
 
@@ -23,14 +22,14 @@ Dealership **inventory dashboard**: filter vehicles, identify **aging stock** (i
 |-----|---------|
 | [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) | Architecture, data flow, tech justifications, observability, GenAI in design |
 | [GLOSSARY.md](GLOSSARY.md) | Domain language |
-| [docs/adr/](docs/adr/) | Hard decisions (0001–0009) |
+| [docs/adr/](docs/adr/) | Hard decisions (0001–0010) |
 | [docs/architecture/](docs/architecture/) | API outline, schema, directory layout |
 | [docs/api-curl-examples.md](docs/api-curl-examples.md) | Client stub via cURL |
 | [.scratch/inventory-dashboard/spec.md](.scratch/inventory-dashboard/spec.md) | Scenario behavior |
 
 ## Build and run
 
-Docker Compose serves the API and the built screen together on port 8080. PostgreSQL is on port 5432. MinIO stays on the Compose network and is not published. There is no sign-in.
+Docker Compose serves the API and the built screen together on port 8080. PostgreSQL is on port 5432. There is no sign-in.
 
 ```bash
 docker compose up --build
@@ -54,7 +53,7 @@ docker compose exec -T postgres psql -U inventory -d inventory < scripts/seed_bu
 
 ## Test
 
-Core business rules (aging boundaries, VIN uniqueness, terminal stock-out, proposed action, primary image) are covered by HTTP API tests against PostgreSQL with a fixed UTC clock:
+Core business rules (aging boundaries, VIN uniqueness, terminal stock-out, proposed action) are covered by HTTP API tests against PostgreSQL with a fixed UTC clock:
 
 ```bash
 cd backend && go test ./...
@@ -62,7 +61,7 @@ cd backend && go test ./...
 
 ## Status
 
-Implemented: health, catalog, vehicles (record / correct / list filters / stock-out / proposed action), primary image upload-stream-delete, Compose one-origin deploy, and the inventory React screen as a bonus client.
+Implemented: health, catalog, vehicles (record / correct / list filters / stock-out / proposed action), Compose one-origin deploy, and the inventory React screen as a bonus client.
 
 ---
 

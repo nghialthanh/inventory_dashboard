@@ -10,13 +10,12 @@ inventory_dashboard/
 ├── GLOSSARY.md
 ├── initial-prompt.md
 ├── docs/
-│   ├── adr/                      # Hard decisions (0001–0009…)
+│   ├── adr/                      # Hard decisions (0001–0010…)
 │   └── architecture/             # Living contract
 ├── .cursor/rules/                # Agent coding rules
 ├── backend/                      # Go API (+ serves static UI in Compose)
 ├── frontend/                     # React + TypeScript SPA
-├── minio/Dockerfile              # Private MinIO from the last published community binary
-└── docker-compose.yml            # Postgres + MinIO + API
+└── docker-compose.yml            # Postgres + API
 ```
 
 ---
@@ -76,15 +75,13 @@ backend/
 │   │   ├── catalog/
 │   │   ├── vehicle/                     # stock-out, patch rules, VIN
 │   │   ├── aging/                       # inventory age + is_aging
-│   │   ├── health/
-│   │   └── media/                       # MinIO put/get/delete
+│   │   └── health/
 │   ├── repositories/                    # SQL queries and commands
 │   │   ├── catalog.go
 │   │   └── vehicle.go
 ├── pkg/
 │   ├── config/
 │   ├── database/
-│   ├── storage/                         # MinIO client, used by a media adapter
 │   └── logger/
 └── …_test.go                            # beside packages
 ```

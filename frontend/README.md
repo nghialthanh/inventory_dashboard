@@ -4,7 +4,7 @@ React screen for the inventory dashboard. Compose serves the production build wi
 
 ## Development
 
-Start the API with Docker Compose from the repository root so PostgreSQL and private MinIO are running. Then, from this directory:
+Start the API with Docker Compose from the repository root so PostgreSQL is running. Then, from this directory:
 
 ```bash
 npm install

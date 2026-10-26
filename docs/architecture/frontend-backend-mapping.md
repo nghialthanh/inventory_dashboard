@@ -16,8 +16,5 @@ Living map of dashboard surfaces → API → hooks. Update a row when a page is 
 | Correct vehicle | Edit allowed fields while in stock | `PATCH /api/v1/vehicles/:id` | `useCorrectVehicle(id)` | implemented |
 | Stock out | Record departure day | `POST /api/v1/vehicles/:id/stock-out` | `useStockOutVehicle(id)` | implemented |
 | Proposed action | Set, replace, or clear on aging stock | `PUT /api/v1/vehicles/:id/proposed-action` | `useSetProposedAction(id)` | implemented |
-| Primary image display | Thumbnail / detail image | `GET /api/v1/vehicles/:id/primary-image` | URL helper `vehiclePrimaryImageUrl(id)` | implemented |
-| Upload / replace image | Set primary image | `PUT /api/v1/vehicles/:id/primary-image` | `useUploadPrimaryImage(id)` | implemented |
-| Remove image | Clear primary image | `DELETE /api/v1/vehicles/:id/primary-image` | `useDeletePrimaryImage(id)` | implemented |
 
-Render `is_aging`, `inventory_age`, `stock_state`, `has_primary_image`, and embedded `make` / `model` from the list payload in [api-outline.md](api-outline.md). Aging rows follow `is_aging`. Stocked-out rows stay distinct and are not aging stock.
+Render `is_aging`, `inventory_age`, `stock_state`, and embedded `make` / `model` from the list payload in [api-outline.md](api-outline.md). Aging rows follow `is_aging`. Stocked-out rows stay distinct and are not aging stock.

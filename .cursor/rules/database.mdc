@@ -1,5 +1,5 @@
 ---
-description: PostgreSQL vehicles, catalog, and primary-image keys
+description: PostgreSQL vehicles and catalog
 globs: backend/internal/models/**/*,backend/internal/repositories/**/*,docs/architecture/database-schema.md
 alwaysApply: false
 ---
@@ -10,4 +10,4 @@ PostgreSQL is the system of record. Match `docs/architecture/database-schema.md`
 
 On a schema change: model, migration, repository, then that doc. A hard-to-reverse choice also gets an ADR.
 
-`vehicles` holds a UUID `id`, a unique `vin`, `model_id`, `entered_on`, nullable `stocked_out_on`, nullable `proposed_action`, and nullable `primary_image_key`. Stock state is whether `stocked_out_on` is null. Image bytes stay in MinIO.
+`vehicles` holds a UUID `id`, a unique `vin`, `model_id`, `entered_on`, nullable `stocked_out_on`, and nullable `proposed_action`. Stock state is whether `stocked_out_on` is null.

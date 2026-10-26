@@ -1,6 +1,6 @@
 # Database Schema
 
-PostgreSQL is the system of record. MinIO holds primary image bytes; Postgres stores only the object key ([ADR-0003](../adr/0003-primary-image-in-minio.md)).
+PostgreSQL is the system of record ([ADR-0010](../adr/0010-no-object-storage.md)).
 
 **Status:** `makes`, `models`, and `vehicles` are migrated. Makes, models, and demo vehicles (ages 0, 90, 91, plus one stocked-out stay longer than 90 days) are seeded.
 
@@ -35,7 +35,6 @@ Daily use does not edit the catalog; missing models are added via seed ([ADR-000
 | `entered_on` | DATE NOT NULL | Inventory age starts here |
 | `stocked_out_on` | DATE NULL | NULL ⇒ in stock; set ⇒ stocked out ([ADR-0005](../adr/0005-stock-state-from-stocked-out-on.md)) |
 | `proposed_action` | TEXT NULL | `price_reduction_planned` \| `wholesale_planned` \| `hold` |
-| `primary_image_key` | TEXT NULL | MinIO object key; not a URL |
 | `created_at` | TIMESTAMPTZ | |
 | `updated_at` | TIMESTAMPTZ | |
 
@@ -48,7 +47,6 @@ Derive stock state from `stocked_out_on`. Keep the row after stock-out ([ADR-000
 | `stock_state` | `in_stock` if `stocked_out_on` IS NULL, else `stocked_out` |
 | `inventory_age` | Calendar days from `entered_on` to today while in stock, or to `stocked_out_on` when stocked out. The entered-on day is 0 |
 | `is_aging` | `stock_state = in_stock` AND `inventory_age > 90` |
-| `has_primary_image` | `primary_image_key IS NOT NULL` |
 
 Aging threshold constant: **90** (document in `constant` + tests).
 
@@ -68,9 +66,3 @@ Aging threshold constant: **90** (document in `constant` + tests).
 1. Migrate `makes`, `models`, `vehicles`.
 2. Seed a realistic make/model catalog for demo filters.
 3. Seed demo vehicles from the UTC date at seed time: inventory age 0, 90, and 91, plus one stocked-out vehicle whose stay was longer than 90 days.
-
-## MinIO
-
-- Bucket private to the compose network.
-- Key scheme example: `vehicles/{vehicle_id}/primary` (exact scheme owned by `logic/media`).
-- Deleting/replacing image updates `primary_image_key` in the same use case as object mutate.

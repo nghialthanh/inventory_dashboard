@@ -1,10 +1,8 @@
 package vehicle
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
@@ -14,7 +12,6 @@ import (
 	"inventory_dashboard/internal/common/constant"
 	apperrors "inventory_dashboard/internal/common/errors"
 	"inventory_dashboard/internal/logic/aging"
-	"inventory_dashboard/internal/logic/media"
 	"inventory_dashboard/internal/models"
 	"inventory_dashboard/internal/repositories"
 	"inventory_dashboard/pkg/logger"
@@ -24,17 +21,16 @@ import (
 type Vehicles struct {
 	repo    *repositories.Vehicles
 	catalog *repositories.Catalog
-	objects *media.Objects
 	today   func() time.Time
 }
 
 // New binds vehicle rules to the vehicle and catalog repositories.
-// A nil today function uses the process clock. A nil objects adapter rejects image commands.
-func New(repo *repositories.Vehicles, catalog *repositories.Catalog, objects *media.Objects, today func() time.Time) *Vehicles {
+// A nil today function uses the process clock.
+func New(repo *repositories.Vehicles, catalog *repositories.Catalog, today func() time.Time) *Vehicles {
 	if today == nil {
 		today = time.Now
 	}
-	return &Vehicles{repo: repo, catalog: catalog, objects: objects, today: today}
+	return &Vehicles{repo: repo, catalog: catalog, today: today}
 }
 
 // RecordVehicle stores an in-stock vehicle and returns it with derived fields.
@@ -231,125 +227,6 @@ func parseProposedAction(raw *string) (*string, error) {
 	return &value, nil
 }
 
-// PutPrimaryImage attaches or replaces the primary image while the vehicle is in stock.
-func (v *Vehicles) PutPrimaryImage(ctx context.Context, id string, size int64, body io.Reader) (models.Vehicle, error) {
-	if v.repo == nil {
-		return models.Vehicle{}, fmt.Errorf("vehicles are not configured")
-	}
-	if v.objects == nil {
-		return models.Vehicle{}, fmt.Errorf("primary images are not configured")
-	}
-	parsed, err := ParseVehicleID(id)
-	if err != nil {
-		return models.Vehicle{}, err
-	}
-	stored, err := v.repo.Get(ctx, parsed)
-	if err != nil {
-		return models.Vehicle{}, err
-	}
-	if stored.StockedOutOn != nil {
-		return models.Vehicle{}, &apperrors.WithMessage{
-			Err:     apperrors.ErrConflict,
-			Message: "The primary image cannot be changed because the vehicle is stocked out.",
-		}
-	}
-	if err := media.ValidateSize(size); err != nil {
-		return models.Vehicle{}, err
-	}
-	limited := io.LimitReader(body, size+1)
-	data, err := io.ReadAll(limited)
-	if err != nil {
-		return models.Vehicle{}, err
-	}
-	if int64(len(data)) != size {
-		return models.Vehicle{}, &apperrors.WithMessage{
-			Err:     apperrors.ErrValidation,
-			Message: "Upload a JPEG, PNG, or WebP image of at most 5 MiB.",
-		}
-	}
-	contentType, err := media.DetectContentType(data)
-	if err != nil {
-		return models.Vehicle{}, err
-	}
-	key := media.ObjectKey(parsed)
-	if err := v.objects.Put(ctx, key, contentType, bytes.NewReader(data), size); err != nil {
-		return models.Vehicle{}, err
-	}
-	if err := v.repo.SetPrimaryImageKey(ctx, parsed, &key); err != nil {
-		return models.Vehicle{}, err
-	}
-	logger.FromContext(ctx).Info("put primary image",
-		zap.String("layer", "logic"),
-		zap.String("op", "PutPrimaryImage"),
-		zap.String("vehicle_id", parsed),
-	)
-	return v.GetVehicle(ctx, parsed)
-}
-
-// DeletePrimaryImage removes the primary image while the vehicle is in stock.
-func (v *Vehicles) DeletePrimaryImage(ctx context.Context, id string) (models.Vehicle, error) {
-	if v.repo == nil {
-		return models.Vehicle{}, fmt.Errorf("vehicles are not configured")
-	}
-	if v.objects == nil {
-		return models.Vehicle{}, fmt.Errorf("primary images are not configured")
-	}
-	parsed, err := ParseVehicleID(id)
-	if err != nil {
-		return models.Vehicle{}, err
-	}
-	stored, err := v.repo.Get(ctx, parsed)
-	if err != nil {
-		return models.Vehicle{}, err
-	}
-	if stored.StockedOutOn != nil {
-		return models.Vehicle{}, &apperrors.WithMessage{
-			Err:     apperrors.ErrConflict,
-			Message: "The primary image cannot be changed because the vehicle is stocked out.",
-		}
-	}
-	if stored.PrimaryImageKey != nil && *stored.PrimaryImageKey != "" {
-		if err := v.objects.Delete(ctx, *stored.PrimaryImageKey); err != nil {
-			return models.Vehicle{}, err
-		}
-	}
-	if err := v.repo.SetPrimaryImageKey(ctx, parsed, nil); err != nil {
-		return models.Vehicle{}, err
-	}
-	logger.FromContext(ctx).Info("deleted primary image",
-		zap.String("layer", "logic"),
-		zap.String("op", "DeletePrimaryImage"),
-		zap.String("vehicle_id", parsed),
-	)
-	return v.GetVehicle(ctx, parsed)
-}
-
-// OpenPrimaryImage streams the primary-image bytes. Missing images are not found.
-func (v *Vehicles) OpenPrimaryImage(ctx context.Context, id string) (io.ReadCloser, string, error) {
-	if v.repo == nil {
-		return nil, "", fmt.Errorf("vehicles are not configured")
-	}
-	if v.objects == nil {
-		return nil, "", fmt.Errorf("primary images are not configured")
-	}
-	parsed, err := ParseVehicleID(id)
-	if err != nil {
-		return nil, "", err
-	}
-	stored, err := v.repo.Get(ctx, parsed)
-	if err != nil {
-		return nil, "", err
-	}
-	if stored.PrimaryImageKey == nil || *stored.PrimaryImageKey == "" {
-		return nil, "", apperrors.ErrNotFound
-	}
-	body, contentType, err := v.objects.Get(ctx, *stored.PrimaryImageKey)
-	if err != nil {
-		return nil, "", err
-	}
-	return body, contentType, nil
-}
-
 // GetVehicle returns one vehicle by its address.
 func (v *Vehicles) GetVehicle(ctx context.Context, id string) (models.Vehicle, error) {
 	if v.repo == nil {
@@ -424,16 +301,15 @@ func (v *Vehicles) present(stored models.StoredVehicle) models.Vehicle {
 		stockedOut = &value
 	}
 	return models.Vehicle{
-		ID:              stored.ID,
-		VIN:             stored.VIN,
-		Make:            stored.Make,
-		Model:           stored.Model,
-		EnteredOn:       aging.UTCDate(stored.EnteredOn).Format("2006-01-02"),
-		StockedOutOn:    stockedOut,
-		StockState:      aging.StockState(stored.StockedOutOn),
-		InventoryAge:    age,
-		IsAging:         aging.IsAging(stored.StockedOutOn, age),
-		ProposedAction:  stored.ProposedAction,
-		HasPrimaryImage: stored.HasPrimaryImage,
+		ID:             stored.ID,
+		VIN:            stored.VIN,
+		Make:           stored.Make,
+		Model:          stored.Model,
+		EnteredOn:      aging.UTCDate(stored.EnteredOn).Format("2006-01-02"),
+		StockedOutOn:   stockedOut,
+		StockState:     aging.StockState(stored.StockedOutOn),
+		InventoryAge:   age,
+		IsAging:        aging.IsAging(stored.StockedOutOn, age),
+		ProposedAction: stored.ProposedAction,
 	}
 }

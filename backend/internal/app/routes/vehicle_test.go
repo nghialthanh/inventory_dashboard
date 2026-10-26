@@ -11,11 +11,9 @@ import (
 
 	"inventory_dashboard/internal/app/routes"
 	"inventory_dashboard/internal/logic/catalog"
-	"inventory_dashboard/internal/logic/media"
 	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
 	"inventory_dashboard/pkg/database"
-	"inventory_dashboard/pkg/storage"
 )
 
 func TestRecordedVehicleIsInStockWithAgeZero(t *testing.T) {
@@ -66,17 +64,16 @@ func TestRecordedVehicleIsInStockWithAgeZero(t *testing.T) {
 }
 
 type vehicleJSON struct {
-	ID              string  `json:"id"`
-	VIN             string  `json:"vin"`
-	Make            refJSON `json:"make"`
-	Model           refJSON `json:"model"`
-	EnteredOn       string  `json:"entered_on"`
-	StockedOutOn    *string `json:"stocked_out_on"`
-	StockState      string  `json:"stock_state"`
-	InventoryAge    int     `json:"inventory_age"`
-	IsAging         bool    `json:"is_aging"`
-	ProposedAction  *string `json:"proposed_action"`
-	HasPrimaryImage bool    `json:"has_primary_image"`
+	ID             string  `json:"id"`
+	VIN            string  `json:"vin"`
+	Make           refJSON `json:"make"`
+	Model          refJSON `json:"model"`
+	EnteredOn      string  `json:"entered_on"`
+	StockedOutOn   *string `json:"stocked_out_on"`
+	StockState     string  `json:"stock_state"`
+	InventoryAge   int     `json:"inventory_age"`
+	IsAging        bool    `json:"is_aging"`
+	ProposedAction *string `json:"proposed_action"`
 }
 
 type refJSON struct {
@@ -108,8 +105,8 @@ func assertInStockToday(t *testing.T, body vehicleBody) {
 	if v.StockState != "in_stock" || v.InventoryAge != 0 || v.IsAging {
 		t.Fatalf("stock_state = %s age = %d aging = %v, want in_stock 0 false", v.StockState, v.InventoryAge, v.IsAging)
 	}
-	if v.ProposedAction != nil || v.HasPrimaryImage {
-		t.Fatalf("proposed_action = %v has_primary_image = %v, want none and false", v.ProposedAction, v.HasPrimaryImage)
+	if v.ProposedAction != nil {
+		t.Fatalf("proposed_action = %v, want none", v.ProposedAction)
 	}
 }
 
@@ -135,7 +132,7 @@ func vehicleServer(t *testing.T, today time.Time) handler {
 	catalogRepo := repositories.NewCatalog(pool)
 	return routes.New(routes.Config{
 		Catalog:  catalog.New(catalogRepo),
-		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, media.NewObjects(storage.NewMemory()), func() time.Time { return today }),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
 	})
 }
 

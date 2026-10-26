@@ -15,22 +15,19 @@ import (
 	"inventory_dashboard/internal/app/routes"
 	"inventory_dashboard/internal/logic/catalog"
 	"inventory_dashboard/internal/logic/health"
-	"inventory_dashboard/internal/logic/media"
 	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
 	"inventory_dashboard/pkg/config"
 	"inventory_dashboard/pkg/database"
 	"inventory_dashboard/pkg/logger"
-	"inventory_dashboard/pkg/storage"
 )
 
-// App is the process: PostgreSQL, private MinIO, and the HTTP server.
+// App is the process: PostgreSQL and the HTTP server.
 type App struct {
-	db    *pgxpool.Pool
-	media *storage.Client
+	db *pgxpool.Pool
 }
 
-// Run connects to PostgreSQL and MinIO, then serves the API and the screen.
+// Run connects to PostgreSQL, then serves the API and the screen.
 func Run(ctx context.Context) error {
 	cfg, err := config.Load()
 	if err != nil {
@@ -52,23 +49,8 @@ func Run(ctx context.Context) error {
 		db.Close()
 		return err
 	}
-	blobs, err := storage.Open(storage.Settings{
-		Endpoint:  cfg.MinIOEndpoint,
-		AccessKey: cfg.MinIOAccessKey,
-		SecretKey: cfg.MinIOSecretKey,
-		Bucket:    cfg.MinIOBucket,
-		UseSSL:    cfg.MinIOUseSSL,
-	})
-	if err != nil {
-		db.Close()
-		return err
-	}
-	if err := retryErr(ctx, blobs.EnsureBucket); err != nil {
-		db.Close()
-		return err
-	}
 
-	application := &App{db: db, media: blobs}
+	application := &App{db: db}
 	defer application.Close()
 
 	catalogRepo := repositories.NewCatalog(db)
@@ -76,12 +58,11 @@ func Run(ctx context.Context) error {
 		StaticDir: cfg.StaticDir,
 		Health:    health.New(),
 		Catalog:   catalog.New(catalogRepo),
-		Vehicles:  vehicle.New(repositories.NewVehicles(db), catalogRepo, media.NewObjects(blobs), nil),
+		Vehicles:  vehicle.New(repositories.NewVehicles(db), catalogRepo, nil),
 	})
 	e.Server.ReadHeaderTimeout = 5 * time.Second
 	logger.L().Info("inventory api listening",
 		zap.String("addr", cfg.HTTPAddr),
-		zap.String("bucket", application.media.Bucket()),
 	)
 
 	errCh := make(chan error, 1)
@@ -110,13 +91,6 @@ func (a *App) Close() {
 	if a.db != nil {
 		a.db.Close()
 	}
-}
-
-func retryErr(ctx context.Context, op func(context.Context) error) error {
-	_, err := retry(ctx, func() (struct{}, error) {
-		return struct{}{}, op(ctx)
-	})
-	return err
 }
 
 func retry[T any](ctx context.Context, op func() (T, error)) (T, error) {

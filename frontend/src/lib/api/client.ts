@@ -38,7 +38,6 @@ export type ApiVehicle = {
   inventory_age: number;
   is_aging: boolean;
   proposed_action: string | null;
-  has_primary_image: boolean;
 };
 
 export class ApiError extends Error {
@@ -105,21 +104,6 @@ export async function putJSON<T>(path: string, payload: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const body = await readEnvelope<T>(response);
-  return body.data;
-}
-
-export async function putMultipart<T>(path: string, form: FormData): Promise<T> {
-  const response = await fetch(path, {
-    method: "PUT",
-    body: form,
-  });
-  const body = await readEnvelope<T>(response);
-  return body.data;
-}
-
-export async function deleteJSON<T>(path: string): Promise<T> {
-  const response = await fetch(path, { method: "DELETE" });
   const body = await readEnvelope<T>(response);
   return body.data;
 }
