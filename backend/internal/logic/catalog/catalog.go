@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"inventory_dashboard/internal/models"
 	"inventory_dashboard/internal/repositories"
+	"inventory_dashboard/pkg/logger"
 )
 
 // Catalog implements the catalog service.
@@ -23,7 +26,16 @@ func (c *Catalog) ListMakes(ctx context.Context) ([]models.Make, error) {
 	if c.repo == nil {
 		return nil, fmt.Errorf("catalog is not configured")
 	}
-	return c.repo.ListMakes(ctx)
+	makes, err := c.repo.ListMakes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	logger.FromContext(ctx).Debug("listed makes",
+		zap.String("layer", "logic"),
+		zap.String("op", "ListMakes"),
+		zap.Int("count", len(makes)),
+	)
+	return makes, nil
 }
 
 // ListModels returns seeded models. An empty makeID returns every model.
@@ -35,5 +47,14 @@ func (c *Catalog) ListModels(ctx context.Context, makeID string) ([]models.Model
 	if err != nil {
 		return nil, err
 	}
-	return c.repo.ListModels(ctx, parsed)
+	list, err := c.repo.ListModels(ctx, parsed)
+	if err != nil {
+		return nil, err
+	}
+	logger.FromContext(ctx).Debug("listed models",
+		zap.String("layer", "logic"),
+		zap.String("op", "ListModels"),
+		zap.Int("count", len(list)),
+	)
+	return list, nil
 }

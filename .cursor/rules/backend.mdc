@@ -16,3 +16,5 @@ All server code is Go under `backend/`. Layout: `docs/architecture/directory-str
 - Calendar dates are `DATE` / `YYYY-MM-DD`. JSON tags are snake_case.
 
 In stock means `stockedOutOn == nil`. Keep domain logic out of `main.go`, middleware, and DTOs.
+
+Logging uses zap (`pkg/logger`). Middleware sets `trace_id` on the request context (`X-Trace-ID`); handlers, logic, and repositories log via `logger.FromContext(ctx)`.

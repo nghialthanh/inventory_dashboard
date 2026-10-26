@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"inventory_dashboard/internal/common/constant"
 	apperrors "inventory_dashboard/internal/common/errors"
@@ -16,6 +17,7 @@ import (
 	"inventory_dashboard/internal/logic/media"
 	"inventory_dashboard/internal/models"
 	"inventory_dashboard/internal/repositories"
+	"inventory_dashboard/pkg/logger"
 )
 
 // Vehicles implements the vehicle service.
@@ -64,6 +66,12 @@ func (v *Vehicles) RecordVehicle(ctx context.Context, vin, modelID, enteredOn st
 	if err := v.repo.Insert(ctx, id, normalized, modelID, entered); err != nil {
 		return models.Vehicle{}, err
 	}
+	logger.FromContext(ctx).Info("recorded vehicle",
+		zap.String("layer", "logic"),
+		zap.String("op", "RecordVehicle"),
+		zap.String("vehicle_id", id),
+		zap.String("vin", normalized),
+	)
 	return v.GetVehicle(ctx, id)
 }
 
@@ -123,6 +131,11 @@ func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin, modelID, 
 	if err := v.repo.Correct(ctx, parsed, nextVIN, nextModelID, nextEntered); err != nil {
 		return models.Vehicle{}, err
 	}
+	logger.FromContext(ctx).Info("corrected vehicle",
+		zap.String("layer", "logic"),
+		zap.String("op", "CorrectVehicle"),
+		zap.String("vehicle_id", parsed),
+	)
 	return v.GetVehicle(ctx, parsed)
 }
 
@@ -155,6 +168,12 @@ func (v *Vehicles) StockOutVehicle(ctx context.Context, id string, stockedOutOn 
 	if err := v.repo.StockOut(ctx, parsed, on); err != nil {
 		return models.Vehicle{}, err
 	}
+	logger.FromContext(ctx).Info("stocked out vehicle",
+		zap.String("layer", "logic"),
+		zap.String("op", "StockOutVehicle"),
+		zap.String("vehicle_id", parsed),
+		zap.Time("stocked_out_on", on),
+	)
 	return v.GetVehicle(ctx, parsed)
 }
 
@@ -185,6 +204,16 @@ func (v *Vehicles) SetProposedAction(ctx context.Context, id string, proposedAct
 	if err := v.repo.SetProposedAction(ctx, parsed, next); err != nil {
 		return models.Vehicle{}, err
 	}
+	action := ""
+	if next != nil {
+		action = *next
+	}
+	logger.FromContext(ctx).Info("set proposed action",
+		zap.String("layer", "logic"),
+		zap.String("op", "SetProposedAction"),
+		zap.String("vehicle_id", parsed),
+		zap.String("proposed_action", action),
+	)
 	return v.GetVehicle(ctx, parsed)
 }
 
@@ -249,6 +278,11 @@ func (v *Vehicles) PutPrimaryImage(ctx context.Context, id string, size int64, b
 	if err := v.repo.SetPrimaryImageKey(ctx, parsed, &key); err != nil {
 		return models.Vehicle{}, err
 	}
+	logger.FromContext(ctx).Info("put primary image",
+		zap.String("layer", "logic"),
+		zap.String("op", "PutPrimaryImage"),
+		zap.String("vehicle_id", parsed),
+	)
 	return v.GetVehicle(ctx, parsed)
 }
 
@@ -282,6 +316,11 @@ func (v *Vehicles) DeletePrimaryImage(ctx context.Context, id string) (models.Ve
 	if err := v.repo.SetPrimaryImageKey(ctx, parsed, nil); err != nil {
 		return models.Vehicle{}, err
 	}
+	logger.FromContext(ctx).Info("deleted primary image",
+		zap.String("layer", "logic"),
+		zap.String("op", "DeletePrimaryImage"),
+		zap.String("vehicle_id", parsed),
+	)
 	return v.GetVehicle(ctx, parsed)
 }
 

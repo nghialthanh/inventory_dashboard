@@ -51,7 +51,8 @@ backend/
 │   │   ├── vehicle.go
 │   │   └── health.go
 │   └── middlewares/
-│       ├── request_id.go
+│       ├── trace.go                     # X-Trace-ID → context for all layers
+│       ├── access_log.go                # zap request log with trace_id
 │       └── …                            # auth only if assessment requires it
 ├── internal/
 │   ├── app/

@@ -12,6 +12,8 @@ Update the owning doc in the same change as the behavior.
 |--------|-----|
 | Domain term | `GLOSSARY.md` |
 | Hard-to-reverse trade-off | `docs/adr/` |
+| Assessment system design (diagram, observability, GenAI design) | `docs/SYSTEM_DESIGN.md` |
+| AI collaboration narrative (step-by-step) | `docs/AI_COLLABORATION.md` |
 | System shape | `docs/architecture/README.md` |
 | Endpoint or envelope | `docs/architecture/api-outline.md` |
 | Table, column, index | `docs/architecture/database-schema.md` |

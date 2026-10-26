@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 
 	"inventory_dashboard/internal/app/routes"
 	"inventory_dashboard/internal/logic/catalog"
@@ -20,6 +20,7 @@ import (
 	"inventory_dashboard/internal/repositories"
 	"inventory_dashboard/pkg/config"
 	"inventory_dashboard/pkg/database"
+	"inventory_dashboard/pkg/logger"
 	"inventory_dashboard/pkg/storage"
 )
 
@@ -78,7 +79,10 @@ func Run(ctx context.Context) error {
 		Vehicles:  vehicle.New(repositories.NewVehicles(db), catalogRepo, media.NewObjects(blobs), nil),
 	})
 	e.Server.ReadHeaderTimeout = 5 * time.Second
-	slog.Info("inventory api listening", "addr", cfg.HTTPAddr, "bucket", application.media.Bucket())
+	logger.L().Info("inventory api listening",
+		zap.String("addr", cfg.HTTPAddr),
+		zap.String("bucket", application.media.Bucket()),
+	)
 
 	errCh := make(chan error, 1)
 	go func() {

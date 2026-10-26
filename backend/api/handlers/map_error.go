@@ -6,9 +6,11 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 
 	apperrors "inventory_dashboard/internal/common/errors"
 	"inventory_dashboard/internal/dto"
+	"inventory_dashboard/pkg/logger"
 )
 
 func mapError(c echo.Context, err error) error {
@@ -25,6 +27,11 @@ func mapError(c echo.Context, err error) error {
 	case errors.Is(err, apperrors.ErrConflict):
 		return dto.Error(c, http.StatusConflict, "CONFLICT", message)
 	default:
+		logger.FromContext(c.Request().Context()).Error("handler internal error",
+			zap.String("layer", "handler"),
+			zap.String("path", c.Path()),
+			zap.Error(err),
+		)
 		return dto.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", message)
 	}
 }

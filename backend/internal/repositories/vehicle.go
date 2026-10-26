@@ -30,7 +30,7 @@ func (v *Vehicles) Insert(ctx context.Context, id, vin, modelID string, enteredO
 		INSERT INTO vehicles (id, vin, model_id, entered_on)
 		VALUES ($1, $2, $3, $4)
 	`, id, vin, modelID, enteredOn)
-	return vinConflict(err)
+	return logRepoErr(ctx, "vehicles.Insert", vinConflict(err))
 }
 
 // Correct changes the VIN, model, or entered on of one vehicle.
@@ -44,7 +44,7 @@ func (v *Vehicles) Correct(ctx context.Context, id string, vin, modelID *string,
 		WHERE id = $1 AND stocked_out_on IS NULL
 	`, id, vin, modelID, enteredOn)
 	if err != nil {
-		return vinConflict(err)
+		return logRepoErr(ctx, "vehicles.Correct", vinConflict(err))
 	}
 	if tag.RowsAffected() == 0 {
 		return apperrors.ErrNotFound
@@ -61,7 +61,7 @@ func (v *Vehicles) StockOut(ctx context.Context, id string, stockedOutOn time.Ti
 		WHERE id = $1
 	`, id, stockedOutOn)
 	if err != nil {
-		return err
+		return logRepoErr(ctx, "vehicles.StockOut", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return apperrors.ErrNotFound
@@ -78,7 +78,7 @@ func (v *Vehicles) SetProposedAction(ctx context.Context, id string, proposedAct
 		WHERE id = $1
 	`, id, proposedAction)
 	if err != nil {
-		return err
+		return logRepoErr(ctx, "vehicles.SetProposedAction", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return apperrors.ErrNotFound
@@ -95,7 +95,7 @@ func (v *Vehicles) SetPrimaryImageKey(ctx context.Context, id string, key *strin
 		WHERE id = $1
 	`, id, key)
 	if err != nil {
-		return err
+		return logRepoErr(ctx, "vehicles.SetPrimaryImageKey", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return apperrors.ErrNotFound
@@ -132,7 +132,10 @@ func (v *Vehicles) Get(ctx context.Context, id string) (models.StoredVehicle, er
 	if errors.Is(err, pgx.ErrNoRows) {
 		return models.StoredVehicle{}, apperrors.ErrNotFound
 	}
-	return vehicle, err
+	if err != nil {
+		return models.StoredVehicle{}, logRepoErr(ctx, "vehicles.Get", err)
+	}
+	return vehicle, nil
 }
 
 // ListFilter narrows the inventory list.
@@ -157,7 +160,7 @@ func (v *Vehicles) List(ctx context.Context, filter ListFilter) ([]models.Stored
 		JOIN models md ON md.id = v.model_id
 		JOIN makes mk ON mk.id = md.make_id
 	`+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
+		return nil, 0, logRepoErr(ctx, "vehicles.List.count", err)
 	}
 
 	listArgs := append(append([]any{}, args...), filter.Limit, filter.Offset)
@@ -166,7 +169,7 @@ func (v *Vehicles) List(ctx context.Context, filter ListFilter) ([]models.Stored
 		LIMIT $%d OFFSET $%d
 	`, len(args)+1, len(args)+2), listArgs...)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, logRepoErr(ctx, "vehicles.List.query", err)
 	}
 	defer rows.Close()
 
@@ -174,11 +177,11 @@ func (v *Vehicles) List(ctx context.Context, filter ListFilter) ([]models.Stored
 	for rows.Next() {
 		vehicle, err := scanVehicle(rows)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, logRepoErr(ctx, "vehicles.List.scan", err)
 		}
 		vehicles = append(vehicles, vehicle)
 	}
-	return vehicles, total, rows.Err()
+	return vehicles, total, logRepoErr(ctx, "vehicles.List.rows", rows.Err())
 }
 
 func filterSQL(filter ListFilter) (string, []any) {

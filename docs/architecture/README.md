@@ -2,6 +2,8 @@
 
 Dealership inventory dashboard: one Go API and a React screen. Managers filter vehicles, see aging stock, and record a proposed action.
 
+**Submission SDD:** [SYSTEM_DESIGN.md](../SYSTEM_DESIGN.md) (architecture diagram, data flow, tech justifications, observability, GenAI in design).
+
 **Words:** [GLOSSARY.md](../../GLOSSARY.md) · **Decisions:** [docs/adr/](../adr/) · **Behavior:** [.scratch/inventory-dashboard/spec.md](../../.scratch/inventory-dashboard/spec.md)
 
 ```mermaid

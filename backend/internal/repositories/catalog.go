@@ -31,7 +31,7 @@ func (c *Catalog) ModelMakeID(ctx context.Context, modelID string) (string, bool
 		return "", false, nil
 	}
 	if err != nil {
-		return "", false, err
+		return "", false, logRepoErr(ctx, "catalog.ModelMakeID", err)
 	}
 	return makeID, true, nil
 }
@@ -40,7 +40,7 @@ func (c *Catalog) ModelMakeID(ctx context.Context, modelID string) (string, bool
 func (c *Catalog) ListMakes(ctx context.Context) ([]models.Make, error) {
 	rows, err := c.pool.Query(ctx, `SELECT id::text, name FROM makes ORDER BY name`)
 	if err != nil {
-		return nil, err
+		return nil, logRepoErr(ctx, "catalog.ListMakes", err)
 	}
 	defer rows.Close()
 
@@ -48,11 +48,11 @@ func (c *Catalog) ListMakes(ctx context.Context) ([]models.Make, error) {
 	for rows.Next() {
 		var make models.Make
 		if err := rows.Scan(&make.ID, &make.Name); err != nil {
-			return nil, err
+			return nil, logRepoErr(ctx, "catalog.ListMakes.scan", err)
 		}
 		makes = append(makes, make)
 	}
-	return makes, rows.Err()
+	return makes, logRepoErr(ctx, "catalog.ListMakes.rows", rows.Err())
 }
 
 // ListModels returns models, optionally limited to one make, ordered by name.
@@ -67,7 +67,7 @@ func (c *Catalog) ListModels(ctx context.Context, makeID *string) ([]models.Mode
 
 	rows, err := c.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, logRepoErr(ctx, "catalog.ListModels", err)
 	}
 	defer rows.Close()
 
@@ -75,9 +75,9 @@ func (c *Catalog) ListModels(ctx context.Context, makeID *string) ([]models.Mode
 	for rows.Next() {
 		var model models.Model
 		if err := rows.Scan(&model.ID, &model.MakeID, &model.Name); err != nil {
-			return nil, err
+			return nil, logRepoErr(ctx, "catalog.ListModels.scan", err)
 		}
 		list = append(list, model)
 	}
-	return list, rows.Err()
+	return list, logRepoErr(ctx, "catalog.ListModels.rows", rows.Err())
 }

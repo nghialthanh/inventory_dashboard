@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"inventory_dashboard/api/handlers"
+	"inventory_dashboard/api/middlewares"
 	"inventory_dashboard/internal/app/routes/v1"
 	"inventory_dashboard/internal/services"
 )
@@ -22,6 +23,7 @@ func New(cfg Config) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
+	e.Use(middlewares.Trace(), middlewares.AccessLog())
 
 	e.GET("/health", handlers.Health(cfg.Health))
 	v1.Register(e.Group("/api/v1"), cfg.Catalog, cfg.Vehicles)
