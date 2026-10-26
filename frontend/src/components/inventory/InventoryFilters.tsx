@@ -3,18 +3,26 @@ import { useMakes, useModels } from "../../lib/data";
 type InventoryFiltersProps = {
   makeId: string;
   modelId: string;
+  stockState: "" | "in_stock" | "stocked_out";
+  stockedOutOn: string;
   agingOnly: boolean;
   onMakeId: (makeId: string) => void;
   onModelId: (modelId: string) => void;
+  onStockState: (stockState: "" | "in_stock" | "stocked_out") => void;
+  onStockedOutOn: (stockedOutOn: string) => void;
   onAgingOnly: (agingOnly: boolean) => void;
 };
 
 export function InventoryFilters({
   makeId,
   modelId,
+  stockState,
+  stockedOutOn,
   agingOnly,
   onMakeId,
   onModelId,
+  onStockState,
+  onStockedOutOn,
   onAgingOnly,
 }: InventoryFiltersProps) {
   const makes = useMakes();
@@ -63,6 +71,29 @@ export function InventoryFilters({
             </option>
           ))}
         </select>
+      </label>
+      <label className="flex min-w-44 flex-col gap-1 text-sm text-[#4e463c]">
+        Stock state
+        <select
+          className="border border-[#d9d1c3] bg-white px-3 py-2 text-base text-[#1c1915]"
+          value={stockState}
+          onChange={(event) =>
+            onStockState(event.target.value as "" | "in_stock" | "stocked_out")
+          }
+        >
+          <option value="">All stock states</option>
+          <option value="in_stock">In stock</option>
+          <option value="stocked_out">Stocked out</option>
+        </select>
+      </label>
+      <label className="flex min-w-44 flex-col gap-1 text-sm text-[#4e463c]">
+        Stocked-out on
+        <input
+          type="date"
+          className="border border-[#d9d1c3] bg-white px-3 py-2 text-base text-[#1c1915]"
+          value={stockedOutOn}
+          onChange={(event) => onStockedOutOn(event.target.value)}
+        />
       </label>
       <label className="flex items-center gap-2 pb-2 text-sm text-[#4e463c]">
         <input

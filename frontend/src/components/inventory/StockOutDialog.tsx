@@ -8,6 +8,7 @@ type FieldErrors = {
 };
 
 export function StockOutDialog({ vehicle }: { vehicle: ApiVehicle }) {
+  const correcting = vehicle.stock_state === "stocked_out";
   const dialogId = `stock-out-${vehicle.id}`;
   const [open, setOpen] = useState(false);
   const [stockedOutOn, setStockedOutOn] = useState("");
@@ -30,10 +31,14 @@ export function StockOutDialog({ vehicle }: { vehicle: ApiVehicle }) {
     try {
       await stockOut.mutateAsync({ stocked_out_on: stockedOutOn });
       setOpen(false);
-      setToast("Vehicle stocked out.");
+      setToast(correcting ? "Stocked-out on corrected." : "Vehicle stocked out.");
     } catch (error) {
       const message =
-        error instanceof ApiError ? error.message : "Could not stock out the vehicle.";
+        error instanceof ApiError
+          ? error.message
+          : correcting
+            ? "Could not correct stocked-out on."
+            : "Could not stock out the vehicle.";
       setToast(message);
     }
   }
@@ -44,13 +49,13 @@ export function StockOutDialog({ vehicle }: { vehicle: ApiVehicle }) {
         type="button"
         className="mt-4 border border-[#1c2b24] px-3 py-1 text-sm text-[#1c2b24]"
         onClick={() => {
-          setStockedOutOn("");
+          setStockedOutOn(vehicle.stocked_out_on ?? "");
           setErrors({});
           setToast(null);
           setOpen(true);
         }}
       >
-        Stock out
+        {correcting ? "Correct stocked-out on" : "Stock out"}
       </button>
       {open ? (
         <div className="fixed inset-0 z-10 flex items-start justify-center bg-[#1c1915]/40 px-4 py-16">
@@ -61,11 +66,12 @@ export function StockOutDialog({ vehicle }: { vehicle: ApiVehicle }) {
             onSubmit={submit}
           >
             <h2 id={dialogId} className="text-2xl">
-              Stock out
+              {correcting ? "Correct stocked-out on" : "Stock out"}
             </h2>
             <p className="mt-2 text-sm text-[#4e463c]">
-              Record the calendar day this vehicle stocked out. The record stays on
-              the list.
+              {correcting
+                ? "Replace the calendar day this vehicle stocked out. The departure stands."
+                : "Record the calendar day this vehicle stocked out. The record stays on the list."}
             </p>
             <label className="mt-4 flex flex-col gap-1 text-sm text-[#4e463c]">
               Stocked-out on
@@ -92,7 +98,7 @@ export function StockOutDialog({ vehicle }: { vehicle: ApiVehicle }) {
                 className="border border-[#1c2b24] bg-[#1c2b24] px-4 py-2 text-sm text-[#f6f1e7]"
                 disabled={stockOut.isPending}
               >
-                Stock out
+                {correcting ? "Correct" : "Stock out"}
               </button>
             </div>
           </form>

@@ -8,7 +8,7 @@ Living map of dashboard surfaces → API → hooks. Update a row when a page is 
 |------------|-------------|-----|----------------|--------|
 | Inventory list | Filter by make and model, and page | `GET /api/v1/vehicles` | `useVehicles(filters)` | implemented |
 | Inventory list | Filter to aging stock only | `GET /api/v1/vehicles?aging=true` | `useVehicles(filters)` | implemented |
-| Inventory list | Filter by stock state | `GET /api/v1/vehicles` | `useVehicles(filters)` | planned |
+| Inventory list | Filter by stock state or stocked-out on | `GET /api/v1/vehicles` | `useVehicles(filters)` | implemented |
 | Make filter options | Choose make | `GET /api/v1/catalog/makes` | `useMakes()` | implemented |
 | Model filter options | Choose model for make | `GET /api/v1/catalog/models?make_id=` | `useModels(makeId)` | implemented |
 | Vehicle detail / row expand | Inspect one vehicle | `GET /api/v1/vehicles/:id` | `useVehicle(id)` | implemented |

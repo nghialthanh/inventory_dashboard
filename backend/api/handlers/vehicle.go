@@ -115,6 +115,8 @@ func ListVehicles(vehicles services.Vehicles) echo.HandlerFunc {
 			c.Request().Context(),
 			c.QueryParam("make_id"),
 			c.QueryParam("model_id"),
+			c.QueryParam("stock_state"),
+			c.QueryParam("stocked_out_on"),
 			c.QueryParam("aging"),
 			c.QueryParam("page"),
 			c.QueryParam("page_size"),

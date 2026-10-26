@@ -8,7 +8,7 @@ alwaysApply: false
 
 Shared components live in `frontend/src/components/`. Copy uses glossary terms.
 
-- The list filters by make, model, and aging. Aging rows follow `is_aging`. Stocked-out rows stay visually distinct.
+- The list filters by make, model, stock state, stocked-out on, and aging. Aging rows follow `is_aging`. Stocked-out rows stay visually distinct.
 - The primary image uses the same-origin API URL, or a placeholder when `has_primary_image` is false.
 - Stock-out, proposed action, and image are separate controls.
 - Field errors are inline. Success and failure use a toast.

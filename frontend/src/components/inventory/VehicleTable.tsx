@@ -219,12 +219,12 @@ function VehicleView({ id }: { id: string }) {
           <dd>{row.has_primary_image ? "Yes" : "No primary image"}</dd>
         </div>
       </dl>
-      {row.stock_state === "in_stock" ? (
-        <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3">
+        {row.stock_state === "in_stock" ? (
           <CorrectVehicleDialog vehicle={row} />
-          <StockOutDialog vehicle={row} />
-        </div>
-      ) : null}
+        ) : null}
+        <StockOutDialog vehicle={row} />
+      </div>
     </div>
   );
 }

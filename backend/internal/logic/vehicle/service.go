@@ -170,11 +170,11 @@ func (v *Vehicles) GetVehicle(ctx context.Context, id string) (models.Vehicle, e
 }
 
 // ListVehicles returns one page of the inventory.
-func (v *Vehicles) ListVehicles(ctx context.Context, makeID, modelID, agingRaw, pageRaw, sizeRaw string) (models.VehiclePage, error) {
+func (v *Vehicles) ListVehicles(ctx context.Context, makeID, modelID, stockState, stockedOutOn, agingRaw, pageRaw, sizeRaw string) (models.VehiclePage, error) {
 	if v.repo == nil {
 		return models.VehiclePage{}, fmt.Errorf("vehicles are not configured")
 	}
-	query, err := ParseList(makeID, modelID, agingRaw, pageRaw, sizeRaw)
+	query, err := ParseList(makeID, modelID, stockState, stockedOutOn, agingRaw, pageRaw, sizeRaw)
 	if err != nil {
 		return models.VehiclePage{}, err
 	}
@@ -190,6 +190,8 @@ func (v *Vehicles) ListVehicles(ctx context.Context, makeID, modelID, agingRaw, 
 	stored, total, err := v.repo.List(ctx, repositories.ListFilter{
 		MakeID:        query.MakeID,
 		ModelID:       query.ModelID,
+		StockState:    query.StockState,
+		StockedOutOn:  query.StockedOutOn,
 		AgingOnly:     query.AgingOnly,
 		EnteredBefore: aging.OldestInStockDay(v.today()).Format("2006-01-02"),
 		Limit:         query.PageSize,

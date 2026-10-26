@@ -8,9 +8,20 @@ import { useVehicles } from "../lib/data";
 export function InventoryPage() {
   const [makeId, setMakeId] = useState("");
   const [modelId, setModelId] = useState("");
+  const [stockState, setStockState] = useState<"" | "in_stock" | "stocked_out">(
+    "",
+  );
+  const [stockedOutOn, setStockedOutOn] = useState("");
   const [agingOnly, setAgingOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const vehicles = useVehicles({ makeId, modelId, agingOnly, page });
+  const vehicles = useVehicles({
+    makeId,
+    modelId,
+    stockState,
+    stockedOutOn,
+    agingOnly,
+    page,
+  });
   const meta = vehicles.data?.meta ?? { page, page_size: 20, total: 0 };
 
   return (
@@ -34,6 +45,8 @@ export function InventoryPage() {
         <InventoryFilters
           makeId={makeId}
           modelId={modelId}
+          stockState={stockState}
+          stockedOutOn={stockedOutOn}
           agingOnly={agingOnly}
           onMakeId={(next) => {
             setMakeId(next);
@@ -42,6 +55,14 @@ export function InventoryPage() {
           }}
           onModelId={(next) => {
             setModelId(next);
+            setPage(1);
+          }}
+          onStockState={(next) => {
+            setStockState(next);
+            setPage(1);
+          }}
+          onStockedOutOn={(next) => {
+            setStockedOutOn(next);
             setPage(1);
           }}
           onAgingOnly={(next) => {

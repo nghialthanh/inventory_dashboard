@@ -62,7 +62,7 @@ List and detail share one shape, with embedded make and model:
 
 ### List
 
-`GET /api/v1/vehicles` — **implemented** for make, model, aging, and paging. `stock_state` and `stocked_out_on` filters are not implemented yet.
+`GET /api/v1/vehicles` — **implemented** for make, model, stock state, stocked-out on, aging, and paging.
 
 | Param | Meaning |
 |-------|---------|

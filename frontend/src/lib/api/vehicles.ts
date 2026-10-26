@@ -9,6 +9,8 @@ import {
 export type VehicleListQuery = {
   makeId: string;
   modelId: string;
+  stockState: "" | "in_stock" | "stocked_out";
+  stockedOutOn: string;
   agingOnly: boolean;
   page: number;
 };
@@ -36,6 +38,12 @@ export function listVehicles(query: VehicleListQuery) {
   }
   if (query.modelId) {
     params.set("model_id", query.modelId);
+  }
+  if (query.stockState) {
+    params.set("stock_state", query.stockState);
+  }
+  if (query.stockedOutOn) {
+    params.set("stocked_out_on", query.stockedOutOn);
   }
   if (query.agingOnly) {
     params.set("aging", "true");

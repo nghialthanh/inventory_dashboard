@@ -12,5 +12,5 @@ type Vehicles interface {
 	CorrectVehicle(ctx context.Context, id string, vin, modelID, enteredOn *string) (models.Vehicle, error)
 	StockOutVehicle(ctx context.Context, id string, stockedOutOn *string) (models.Vehicle, error)
 	GetVehicle(ctx context.Context, id string) (models.Vehicle, error)
-	ListVehicles(ctx context.Context, makeID, modelID, aging, page, pageSize string) (models.VehiclePage, error)
+	ListVehicles(ctx context.Context, makeID, modelID, stockState, stockedOutOn, aging, page, pageSize string) (models.VehiclePage, error)
 }

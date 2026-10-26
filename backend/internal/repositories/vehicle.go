@@ -105,6 +105,8 @@ func (v *Vehicles) Get(ctx context.Context, id string) (models.StoredVehicle, er
 type ListFilter struct {
 	MakeID        string
 	ModelID       string
+	StockState    string
+	StockedOutOn  string
 	AgingOnly     bool
 	EnteredBefore string
 	Limit         int
@@ -155,6 +157,16 @@ func filterSQL(filter ListFilter) (string, []any) {
 	if filter.ModelID != "" {
 		args = append(args, filter.ModelID)
 		where += fmt.Sprintf(" AND md.id = $%d", len(args))
+	}
+	switch filter.StockState {
+	case "in_stock":
+		where += " AND v.stocked_out_on IS NULL"
+	case "stocked_out":
+		where += " AND v.stocked_out_on IS NOT NULL"
+	}
+	if filter.StockedOutOn != "" {
+		args = append(args, filter.StockedOutOn)
+		where += fmt.Sprintf(" AND v.stocked_out_on = $%d::date", len(args))
 	}
 	if filter.AgingOnly {
 		args = append(args, filter.EnteredBefore)
