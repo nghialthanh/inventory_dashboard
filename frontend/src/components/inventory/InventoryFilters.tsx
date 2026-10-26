@@ -50,7 +50,7 @@ export function InventoryFilters({
         >
           <option value="">All makes</option>
           {(makes.data ?? []).map((make) => (
-            <option key={make.id} value={make.id}>
+            <option key={make.id} value={String(make.id)}>
               {make.name}
             </option>
           ))}
@@ -66,7 +66,7 @@ export function InventoryFilters({
         >
           <option value="">All models</option>
           {(models.data ?? []).map((model) => (
-            <option key={model.id} value={model.id}>
+            <option key={model.id} value={String(model.id)}>
               {model.name}
             </option>
           ))}

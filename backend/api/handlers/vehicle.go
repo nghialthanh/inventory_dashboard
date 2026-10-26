@@ -13,7 +13,7 @@ import (
 
 type recordVehicleRequest struct {
 	VIN       string `json:"vin"`
-	ModelID   string `json:"model_id"`
+	ModelID   int32  `json:"model_id"`
 	EnteredOn string `json:"entered_on"`
 }
 
@@ -37,7 +37,7 @@ func RecordVehicle(vehicles services.Vehicles) echo.HandlerFunc {
 
 type correctVehicleRequest struct {
 	VIN       *string `json:"vin"`
-	ModelID   *string `json:"model_id"`
+	ModelID   *int32  `json:"model_id"`
 	EnteredOn *string `json:"entered_on"`
 }
 

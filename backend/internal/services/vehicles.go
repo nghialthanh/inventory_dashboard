@@ -8,8 +8,8 @@ import (
 
 // Vehicles records and reads inventory.
 type Vehicles interface {
-	RecordVehicle(ctx context.Context, vin, modelID, enteredOn string) (models.Vehicle, error)
-	CorrectVehicle(ctx context.Context, id string, vin, modelID, enteredOn *string) (models.Vehicle, error)
+	RecordVehicle(ctx context.Context, vin string, modelID int32, enteredOn string) (models.Vehicle, error)
+	CorrectVehicle(ctx context.Context, id string, vin *string, modelID *int32, enteredOn *string) (models.Vehicle, error)
 	StockOutVehicle(ctx context.Context, id string, stockedOutOn *string) (models.Vehicle, error)
 	SetProposedAction(ctx context.Context, id string, proposedAction *string) (models.Vehicle, error)
 	GetVehicle(ctx context.Context, id string) (models.Vehicle, error)

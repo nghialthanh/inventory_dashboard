@@ -1,6 +1,6 @@
 # 04: See aging stock
 
-**What to build:** The manager can tell aging stock from normal in-stock vehicles on the list, and can filter the list down to aging stock only. Demo vehicles make the 90-day boundary visible on first open.
+**Decision:** Aging stock means in stock and inventory age greater than 90. That rule lives in the architecture invariants and the glossary. This file is the acceptance checklist.
 
 **Blocked by:** 03 Record a vehicle and see it on the list
 

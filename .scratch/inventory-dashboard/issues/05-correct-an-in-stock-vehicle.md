@@ -1,6 +1,6 @@
 # 05: Correct an in-stock vehicle
 
-**What to build:** While a vehicle is in stock, the manager corrects its VIN, its model, or entered on. The vehicle keeps the same address when the VIN changes. The correction cannot set a proposed action or stocked-out on.
+**Decision:** [ADR-0006](../../../docs/adr/0006-uuid-vehicle-identity.md) and [ADR-0007](../../../docs/adr/0007-separate-commands.md). This file is the acceptance checklist for those decisions.
 
 **Blocked by:** 03 Record a vehicle and see it on the list
 

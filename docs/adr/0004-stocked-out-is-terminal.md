@@ -6,3 +6,5 @@ A stocked-out vehicle cannot return to in stock, and its VIN cannot be added aga
 
 - Reopen the same vehicle and keep the original entered-on date. The gap counts toward inventory age.
 - Reopen it and set entered on to the day it returns. The earlier stay is no longer visible, which fights the reason departed vehicles were kept.
+
+Accepted in [06](../../.scratch/inventory-dashboard/issues/06-stock-out-a-vehicle.md), [07](../../.scratch/inventory-dashboard/issues/07-review-departures.md), and [08](../../.scratch/inventory-dashboard/issues/08-reject-corrections-after-stock-out.md).

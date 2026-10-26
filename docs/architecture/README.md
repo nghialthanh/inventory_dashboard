@@ -54,7 +54,7 @@ flowchart LR
 | Question | Doc |
 |----------|-----|
 | What a word means | [GLOSSARY.md](../../GLOSSARY.md) |
-| Why a hard choice was made | [docs/adr/](../adr/) |
+| Why a hard choice was made | [docs/adr/](../adr/) — [index](../adr/README.md) pairs each decision with the issue that accepted it |
 | Tables and indexes | [database-schema.md](database-schema.md) |
 | Routes, bodies, errors | [api-outline.md](api-outline.md) |
 | Packages | [directory-structure.md](directory-structure.md) |

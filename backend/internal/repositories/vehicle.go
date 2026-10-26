@@ -25,16 +25,21 @@ func NewVehicles(pool *pgxpool.Pool) *Vehicles {
 }
 
 // Insert records an in-stock vehicle. A duplicate VIN is a conflict.
-func (v *Vehicles) Insert(ctx context.Context, id, vin, modelID string, enteredOn time.Time) error {
-	_, err := v.pool.Exec(ctx, `
-		INSERT INTO vehicles (id, vin, model_id, entered_on)
-		VALUES ($1, $2, $3, $4)
-	`, id, vin, modelID, enteredOn)
-	return logRepoErr(ctx, "vehicles.Insert", vinConflict(err))
+func (v *Vehicles) Insert(ctx context.Context, vin string, modelID int32, enteredOn time.Time) (int64, error) {
+	var id int64
+	err := v.pool.QueryRow(ctx, `
+		INSERT INTO vehicles (vin, model_id, entered_on)
+		VALUES ($1, $2, $3)
+		RETURNING id
+	`, vin, modelID, enteredOn).Scan(&id)
+	if err != nil {
+		return 0, logRepoErr(ctx, "vehicles.Insert", vinConflict(err))
+	}
+	return id, nil
 }
 
 // Correct changes the VIN, model, or entered on of one vehicle.
-func (v *Vehicles) Correct(ctx context.Context, id string, vin, modelID *string, enteredOn *time.Time) error {
+func (v *Vehicles) Correct(ctx context.Context, id int64, vin *string, modelID *int32, enteredOn *time.Time) error {
 	tag, err := v.pool.Exec(ctx, `
 		UPDATE vehicles
 		SET vin = COALESCE($2, vin),
@@ -53,7 +58,7 @@ func (v *Vehicles) Correct(ctx context.Context, id string, vin, modelID *string,
 }
 
 // StockOut records or replaces stocked-out on for one vehicle.
-func (v *Vehicles) StockOut(ctx context.Context, id string, stockedOutOn time.Time) error {
+func (v *Vehicles) StockOut(ctx context.Context, id int64, stockedOutOn time.Time) error {
 	tag, err := v.pool.Exec(ctx, `
 		UPDATE vehicles
 		SET stocked_out_on = $2,
@@ -70,7 +75,7 @@ func (v *Vehicles) StockOut(ctx context.Context, id string, stockedOutOn time.Ti
 }
 
 // SetProposedAction stores or clears the proposed action on one vehicle.
-func (v *Vehicles) SetProposedAction(ctx context.Context, id string, proposedAction *string) error {
+func (v *Vehicles) SetProposedAction(ctx context.Context, id int64, proposedAction *string) error {
 	tag, err := v.pool.Exec(ctx, `
 		UPDATE vehicles
 		SET proposed_action = $2,
@@ -98,9 +103,9 @@ func vinConflict(err error) error {
 }
 
 const vehicleSelect = `
-	SELECT v.id::text, v.vin,
-		mk.id::text, mk.name,
-		md.id::text, md.name,
+	SELECT v.id, v.vin,
+		mk.id, mk.name,
+		md.id, md.name,
 		v.entered_on, v.stocked_out_on, v.proposed_action
 	FROM vehicles v
 	JOIN models md ON md.id = v.model_id
@@ -108,7 +113,7 @@ const vehicleSelect = `
 `
 
 // Get loads one vehicle by its address.
-func (v *Vehicles) Get(ctx context.Context, id string) (models.StoredVehicle, error) {
+func (v *Vehicles) Get(ctx context.Context, id int64) (models.StoredVehicle, error) {
 	row := v.pool.QueryRow(ctx, vehicleSelect+` WHERE v.id = $1`, id)
 	vehicle, err := scanVehicle(row)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -122,8 +127,8 @@ func (v *Vehicles) Get(ctx context.Context, id string) (models.StoredVehicle, er
 
 // ListFilter narrows the inventory list.
 type ListFilter struct {
-	MakeID        string
-	ModelID       string
+	MakeID        int32
+	ModelID       int32
 	StockState    string
 	StockedOutOn  string
 	AgingOnly     bool
@@ -169,11 +174,11 @@ func (v *Vehicles) List(ctx context.Context, filter ListFilter) ([]models.Stored
 func filterSQL(filter ListFilter) (string, []any) {
 	where := " WHERE 1=1"
 	args := []any{}
-	if filter.MakeID != "" {
+	if filter.MakeID != 0 {
 		args = append(args, filter.MakeID)
 		where += fmt.Sprintf(" AND mk.id = $%d", len(args))
 	}
-	if filter.ModelID != "" {
+	if filter.ModelID != 0 {
 		args = append(args, filter.ModelID)
 		where += fmt.Sprintf(" AND md.id = $%d", len(args))
 	}

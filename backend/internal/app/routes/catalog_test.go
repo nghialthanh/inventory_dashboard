@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -30,7 +31,7 @@ func TestCatalogListsSeededMakes(t *testing.T) {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 		Data    []struct {
-			ID   string `json:"id"`
+			ID   int32  `json:"id"`
 			Name string `json:"name"`
 		} `json:"data"`
 	}
@@ -41,15 +42,17 @@ func TestCatalogListsSeededMakes(t *testing.T) {
 		t.Fatalf("envelope = code %d message %q, want 200 ok", body.Code, body.Message)
 	}
 
+	got := map[string]int32{}
 	var names []string
 	for _, make := range body.Data {
-		if make.ID == "" {
-			t.Fatal("make id is empty")
-		}
+		got[make.Name] = make.ID
 		names = append(names, make.Name)
 	}
 	if strings.Join(names, ",") != "Ford,Honda,Toyota" {
 		t.Fatalf("makes = %q, want Ford, Honda, Toyota", strings.Join(names, ","))
+	}
+	if got["Ford"] != 1 || got["Honda"] != 2 || got["Toyota"] != 3 {
+		t.Fatalf("make addresses = %v, want Ford 1, Honda 2, Toyota 3", got)
 	}
 }
 
@@ -59,13 +62,13 @@ func TestChoosingAMakeLimitsModelsToThatMake(t *testing.T) {
 	honda := findName(t, makes, "Honda")
 	toyota := findName(t, makes, "Toyota")
 
-	hondaModels := catalogData(t, srv, "/api/v1/catalog/models?make_id="+honda.ID)
+	hondaModels := catalogData(t, srv, fmt.Sprintf("/api/v1/catalog/models?make_id=%d", honda.ID))
 	if namesOf(hondaModels) != "Accord,Civic" {
 		t.Fatalf("Honda models = %q, want Accord, Civic", namesOf(hondaModels))
 	}
 	for _, model := range hondaModels {
 		if model.MakeID != honda.ID {
-			t.Fatalf("model %s make_id = %s, want Honda %s", model.Name, model.MakeID, honda.ID)
+			t.Fatalf("model %s make_id = %d, want Honda %d", model.Name, model.MakeID, honda.ID)
 		}
 	}
 
@@ -75,10 +78,10 @@ func TestChoosingAMakeLimitsModelsToThatMake(t *testing.T) {
 	}
 	camry := findName(t, all, "Camry")
 	if camry.MakeID != toyota.ID {
-		t.Fatalf("Camry make_id = %s, want Toyota %s", camry.MakeID, toyota.ID)
+		t.Fatalf("Camry make_id = %d, want Toyota %d", camry.MakeID, toyota.ID)
 	}
 
-	unknown := catalogData(t, srv, "/api/v1/catalog/models?make_id=33333333-3333-4333-8333-333333333333")
+	unknown := catalogData(t, srv, "/api/v1/catalog/models?make_id=999999")
 	if len(unknown) != 0 {
 		t.Fatalf("unknown make returned %d models, want none", len(unknown))
 	}
@@ -98,6 +101,21 @@ func TestChoosingAMakeLimitsModelsToThatMake(t *testing.T) {
 	if errBody.Data.ErrorCode != "VALIDATION_ERROR" {
 		t.Fatalf("error_code = %q, want VALIDATION_ERROR", errBody.Data.ErrorCode)
 	}
+	for _, raw := range []string{"0", "-1", "2147483648", "1.5"} {
+		rec := request(t, srv, http.MethodGet, "/api/v1/catalog/models?make_id="+raw)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("make_id %s status = %d, want 400", raw, rec.Code)
+		}
+	}
+
+	want := map[string]int32{
+		"F-150": 1, "Mustang": 2, "Accord": 3, "Civic": 4, "Camry": 5, "Corolla": 6,
+	}
+	for _, model := range all {
+		if want[model.Name] != model.ID {
+			t.Fatalf("model %s address = %d, want %d", model.Name, model.ID, want[model.Name])
+		}
+	}
 }
 
 func TestCatalogCannotBeEdited(t *testing.T) {
@@ -113,8 +131,8 @@ func TestCatalogCannotBeEdited(t *testing.T) {
 }
 
 type catalogItem struct {
-	ID     string `json:"id"`
-	MakeID string `json:"make_id"`
+	ID     int32  `json:"id"`
+	MakeID int32  `json:"make_id"`
 	Name   string `json:"name"`
 }
 
@@ -161,7 +179,7 @@ func catalogServer(t *testing.T) handler {
 	t.Helper()
 	ctx := context.Background()
 	pool := testCatalogDB(t)
-	if err := database.Migrate(ctx, pool); err != nil {
+	if err := resetSchema(ctx, pool); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `TRUNCATE models, makes CASCADE`); err != nil {
@@ -173,6 +191,13 @@ func catalogServer(t *testing.T) handler {
 	return routes.New(routes.Config{
 		Catalog: catalog.New(repositories.NewCatalog(pool)),
 	})
+}
+
+func resetSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	if _, err := pool.Exec(ctx, `DROP TABLE IF EXISTS vehicles, models, makes CASCADE`); err != nil {
+		return err
+	}
+	return database.Migrate(ctx, pool)
 }
 
 func testCatalogDB(t *testing.T) *pgxpool.Pool {

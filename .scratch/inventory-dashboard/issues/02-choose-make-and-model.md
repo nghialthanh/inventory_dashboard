@@ -1,6 +1,6 @@
 # 02: Choose make and model from the catalog
 
-**What to build:** The manager picks a make on the dashboard and sees only that make's models. Makes and models come from a seeded catalog. The manager cannot add or rename them.
+**Decision:** [ADR-0002](../../../docs/adr/0002-model-catalog.md). This file is the acceptance checklist for that decision.
 
 **Blocked by:** 01 Open the empty dashboard
 

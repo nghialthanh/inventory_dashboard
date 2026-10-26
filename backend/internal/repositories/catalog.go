@@ -21,24 +21,24 @@ func NewCatalog(pool *pgxpool.Pool) *Catalog {
 }
 
 // ModelMakeID returns the make that owns the model. ok is false when the model is unknown.
-func (c *Catalog) ModelMakeID(ctx context.Context, modelID string) (string, bool, error) {
+func (c *Catalog) ModelMakeID(ctx context.Context, modelID int32) (int32, bool, error) {
 	if c == nil || c.pool == nil {
-		return "", false, errors.New("catalog is not configured")
+		return 0, false, errors.New("catalog is not configured")
 	}
-	var makeID string
-	err := c.pool.QueryRow(ctx, `SELECT make_id::text FROM models WHERE id = $1`, modelID).Scan(&makeID)
+	var makeID int32
+	err := c.pool.QueryRow(ctx, `SELECT make_id FROM models WHERE id = $1`, modelID).Scan(&makeID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", false, nil
+		return 0, false, nil
 	}
 	if err != nil {
-		return "", false, logRepoErr(ctx, "catalog.ModelMakeID", err)
+		return 0, false, logRepoErr(ctx, "catalog.ModelMakeID", err)
 	}
 	return makeID, true, nil
 }
 
 // ListMakes returns every make, ordered by name.
 func (c *Catalog) ListMakes(ctx context.Context) ([]models.Make, error) {
-	rows, err := c.pool.Query(ctx, `SELECT id::text, name FROM makes ORDER BY name`)
+	rows, err := c.pool.Query(ctx, `SELECT id, name FROM makes ORDER BY name`)
 	if err != nil {
 		return nil, logRepoErr(ctx, "catalog.ListMakes", err)
 	}
@@ -56,8 +56,8 @@ func (c *Catalog) ListMakes(ctx context.Context) ([]models.Make, error) {
 }
 
 // ListModels returns models, optionally limited to one make, ordered by name.
-func (c *Catalog) ListModels(ctx context.Context, makeID *string) ([]models.Model, error) {
-	query := `SELECT id::text, make_id::text, name FROM models`
+func (c *Catalog) ListModels(ctx context.Context, makeID *int32) ([]models.Model, error) {
+	query := `SELECT id, make_id, name FROM models`
 	args := []any{}
 	if makeID != nil {
 		query += ` WHERE make_id = $1`

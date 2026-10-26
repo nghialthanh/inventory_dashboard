@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"inventory_dashboard/internal/logic/catalog"
 	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
-	"inventory_dashboard/pkg/database"
 )
 
 func TestRecordedVehicleIsInStockWithAgeZero(t *testing.T) {
@@ -22,17 +22,20 @@ func TestRecordedVehicleIsInStockWithAgeZero(t *testing.T) {
 
 	rec := postJSON(t, srv, "/api/v1/vehicles", `{
 		"vin": " 1hgcm82633a004352 ",
-		"model_id": "22222222-2222-4222-8222-222222222204",
+		"model_id": 4,
 		"entered_on": "2026-10-26"
 	}`)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	created := decodeVehicle(t, rec.Body.Bytes())
+	if created.Data.ID < 5 {
+		t.Fatalf("vehicle address = %d, want 5 or higher after the demo seed", created.Data.ID)
+	}
 	assertInStockToday(t, created)
 
-	got := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.Data.ID).Body.Bytes())
-	if request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.Data.ID).Code != http.StatusOK {
+	got := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.Data.ID)).Body.Bytes())
+	if request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.Data.ID)).Code != http.StatusOK {
 		t.Fatal("vehicle view status, want 200")
 	}
 	assertInStockToday(t, got)
@@ -64,7 +67,7 @@ func TestRecordedVehicleIsInStockWithAgeZero(t *testing.T) {
 }
 
 type vehicleJSON struct {
-	ID             string  `json:"id"`
+	ID             int64   `json:"id"`
 	VIN            string  `json:"vin"`
 	Make           refJSON `json:"make"`
 	Model          refJSON `json:"model"`
@@ -77,8 +80,12 @@ type vehicleJSON struct {
 }
 
 type refJSON struct {
-	ID   string `json:"id"`
+	ID   int32  `json:"id"`
 	Name string `json:"name"`
+}
+
+func addr(id int64) string {
+	return strconv.FormatInt(id, 10)
 }
 
 type vehicleBody struct {
@@ -123,7 +130,7 @@ func vehicleServer(t *testing.T, today time.Time) handler {
 	t.Helper()
 	ctx := context.Background()
 	pool := testCatalogDB(t)
-	if err := database.Migrate(ctx, pool); err != nil {
+	if err := resetSchema(ctx, pool); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `TRUNCATE vehicles`); err != nil {

@@ -73,7 +73,7 @@ Tooling: **Cursor** (chat + agents + rules under `.cursor/rules/`).
 
 **Output**
 
-- [docs/adr/](adr/) (0001–0010)
+- [docs/adr/](adr/) (0001–0011)
 
 ---
 

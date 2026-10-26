@@ -3,10 +3,10 @@ package vehicle
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"inventory_dashboard/internal/common/constant"
@@ -34,7 +34,7 @@ func New(repo *repositories.Vehicles, catalog *repositories.Catalog, today func(
 }
 
 // RecordVehicle stores an in-stock vehicle and returns it with derived fields.
-func (v *Vehicles) RecordVehicle(ctx context.Context, vin, modelID, enteredOn string) (models.Vehicle, error) {
+func (v *Vehicles) RecordVehicle(ctx context.Context, vin string, modelID int32, enteredOn string) (models.Vehicle, error) {
 	if v.repo == nil {
 		return models.Vehicle{}, fmt.Errorf("vehicles are not configured")
 	}
@@ -42,8 +42,7 @@ func (v *Vehicles) RecordVehicle(ctx context.Context, vin, modelID, enteredOn st
 	if err != nil {
 		return models.Vehicle{}, err
 	}
-	modelID, err = ParseModelID(modelID)
-	if err != nil {
+	if err := AcceptModelID(modelID); err != nil {
 		return models.Vehicle{}, err
 	}
 	entered, err := ParseEnteredOn(enteredOn, v.today())
@@ -58,21 +57,21 @@ func (v *Vehicles) RecordVehicle(ctx context.Context, vin, modelID, enteredOn st
 			Message: "Choose a model from the catalog.",
 		}
 	}
-	id := uuid.NewString()
-	if err := v.repo.Insert(ctx, id, normalized, modelID, entered); err != nil {
+	id, err := v.repo.Insert(ctx, normalized, modelID, entered)
+	if err != nil {
 		return models.Vehicle{}, err
 	}
 	logger.FromContext(ctx).Info("recorded vehicle",
 		zap.String("layer", "logic"),
 		zap.String("op", "RecordVehicle"),
-		zap.String("vehicle_id", id),
+		zap.Int64("vehicle_id", id),
 		zap.String("vin", normalized),
 	)
-	return v.GetVehicle(ctx, id)
+	return v.GetVehicle(ctx, strconv.FormatInt(id, 10))
 }
 
 // CorrectVehicle changes a non-empty subset of VIN, model, and entered on.
-func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin, modelID, enteredOn *string) (models.Vehicle, error) {
+func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin *string, modelID *int32, enteredOn *string) (models.Vehicle, error) {
 	if v.repo == nil {
 		return models.Vehicle{}, fmt.Errorf("vehicles are not configured")
 	}
@@ -90,7 +89,8 @@ func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin, modelID, 
 			Message: "The correction is rejected because the vehicle is stocked out.",
 		}
 	}
-	var nextVIN, nextModelID *string
+	var nextVIN *string
+	var nextModelID *int32
 	var nextEntered *time.Time
 	if vin != nil {
 		normalized, err := NormalizeVIN(*vin)
@@ -100,11 +100,10 @@ func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin, modelID, 
 		nextVIN = &normalized
 	}
 	if modelID != nil {
-		parsedModel, err := ParseModelID(*modelID)
-		if err != nil {
+		if err := AcceptModelID(*modelID); err != nil {
 			return models.Vehicle{}, err
 		}
-		if _, ok, err := v.modelMakeID(ctx, parsedModel); err != nil {
+		if _, ok, err := v.modelMakeID(ctx, *modelID); err != nil {
 			return models.Vehicle{}, err
 		} else if !ok {
 			return models.Vehicle{}, &apperrors.WithMessage{
@@ -112,7 +111,7 @@ func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin, modelID, 
 				Message: "Choose a model from the catalog.",
 			}
 		}
-		nextModelID = &parsedModel
+		nextModelID = modelID
 	}
 	if enteredOn != nil {
 		entered, err := ParseEnteredOn(*enteredOn, v.today())
@@ -130,9 +129,9 @@ func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin, modelID, 
 	logger.FromContext(ctx).Info("corrected vehicle",
 		zap.String("layer", "logic"),
 		zap.String("op", "CorrectVehicle"),
-		zap.String("vehicle_id", parsed),
+		zap.Int64("vehicle_id", parsed),
 	)
-	return v.GetVehicle(ctx, parsed)
+	return v.GetVehicle(ctx, strconv.FormatInt(parsed, 10))
 }
 
 // StockOutVehicle records stocked-out on. Clearing it is a conflict: the departure stands.
@@ -167,10 +166,10 @@ func (v *Vehicles) StockOutVehicle(ctx context.Context, id string, stockedOutOn 
 	logger.FromContext(ctx).Info("stocked out vehicle",
 		zap.String("layer", "logic"),
 		zap.String("op", "StockOutVehicle"),
-		zap.String("vehicle_id", parsed),
+		zap.Int64("vehicle_id", parsed),
 		zap.Time("stocked_out_on", on),
 	)
-	return v.GetVehicle(ctx, parsed)
+	return v.GetVehicle(ctx, strconv.FormatInt(parsed, 10))
 }
 
 // SetProposedAction sets, replaces, or clears the proposed action on aging stock.
@@ -207,10 +206,10 @@ func (v *Vehicles) SetProposedAction(ctx context.Context, id string, proposedAct
 	logger.FromContext(ctx).Info("set proposed action",
 		zap.String("layer", "logic"),
 		zap.String("op", "SetProposedAction"),
-		zap.String("vehicle_id", parsed),
+		zap.Int64("vehicle_id", parsed),
 		zap.String("proposed_action", action),
 	)
-	return v.GetVehicle(ctx, parsed)
+	return v.GetVehicle(ctx, strconv.FormatInt(parsed, 10))
 }
 
 func parseProposedAction(raw *string) (*string, error) {
@@ -252,7 +251,7 @@ func (v *Vehicles) ListVehicles(ctx context.Context, makeID, modelID, stockState
 	if err != nil {
 		return models.VehiclePage{}, err
 	}
-	if query.MakeID != "" && query.ModelID != "" {
+	if query.MakeID != 0 && query.ModelID != 0 {
 		owner, ok, err := v.modelMakeID(ctx, query.ModelID)
 		if err != nil {
 			return models.VehiclePage{}, err
@@ -286,9 +285,9 @@ func (v *Vehicles) ListVehicles(ctx context.Context, makeID, modelID, stockState
 	return page, nil
 }
 
-func (v *Vehicles) modelMakeID(ctx context.Context, modelID string) (string, bool, error) {
+func (v *Vehicles) modelMakeID(ctx context.Context, modelID int32) (int32, bool, error) {
 	if v.catalog == nil {
-		return "", false, fmt.Errorf("catalog is not configured")
+		return 0, false, fmt.Errorf("catalog is not configured")
 	}
 	return v.catalog.ModelMakeID(ctx, modelID)
 }

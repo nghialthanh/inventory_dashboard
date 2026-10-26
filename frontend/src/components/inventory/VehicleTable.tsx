@@ -39,7 +39,7 @@ export function VehicleTable({
   failed,
   onPage,
 }: VehicleTableProps) {
-  const [openId, setOpenId] = useState("");
+  const [openId, setOpenId] = useState<number | null>(null);
   const pageCount = Math.max(1, Math.ceil(meta.total / meta.page_size));
 
   return (
@@ -84,7 +84,7 @@ export function VehicleTable({
                   vehicle={vehicle}
                   open={openId === vehicle.id}
                   onToggle={() =>
-                    setOpenId((current) => (current === vehicle.id ? "" : vehicle.id))
+                    setOpenId((current) => (current === vehicle.id ? null : vehicle.id))
                   }
                 />
               ))}
@@ -162,7 +162,7 @@ function VehicleRows({
   );
 }
 
-function VehicleView({ id }: { id: string }) {
+function VehicleView({ id }: { id: number }) {
   const vehicle = useVehicle(id);
   if (vehicle.isError) {
     return (

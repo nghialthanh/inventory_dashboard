@@ -4,7 +4,7 @@ Client-side stub for the backend assessment: explore the REST API without the Re
 
 ```bash
 BASE=http://localhost:8080
-CIVIC=22222222-2222-4222-8222-222222222204
+CIVIC=4
 ```
 
 ## Health
@@ -17,7 +17,7 @@ curl -s "$BASE/health"
 
 ```bash
 curl -s "$BASE/api/v1/catalog/makes" | jq .
-curl -s "$BASE/api/v1/catalog/models?make_id=11111111-1111-4111-8111-111111111102" | jq .
+curl -s "$BASE/api/v1/catalog/models?make_id=2" | jq .
 ```
 
 ## Record a vehicle
@@ -25,7 +25,7 @@ curl -s "$BASE/api/v1/catalog/models?make_id=11111111-1111-4111-8111-11111111110
 ```bash
 curl -s -X POST "$BASE/api/v1/vehicles" \
   -H 'Content-Type: application/json' \
-  -d "{\"vin\":\"1HGCM82633A004352\",\"model_id\":\"$CIVIC\",\"entered_on\":\"2026-10-26\"}" | jq .
+  -d "{\"vin\":\"1HGCM82633A004352\",\"model_id\":$CIVIC,\"entered_on\":\"2026-10-26\"}" | jq .
 ```
 
 Save the returned `data.id` as `ID` for later calls.
@@ -35,7 +35,7 @@ Save the returned `data.id` as `ID` for later calls.
 ```bash
 curl -s "$BASE/api/v1/vehicles?page=1&page_size=20" | jq .
 curl -s "$BASE/api/v1/vehicles?aging=true&page=1&page_size=20" | jq .
-curl -s "$BASE/api/v1/vehicles?stock_state=in_stock&make_id=11111111-1111-4111-8111-111111111102" | jq .
+curl -s "$BASE/api/v1/vehicles?stock_state=in_stock&make_id=2" | jq .
 ```
 
 ## Read one

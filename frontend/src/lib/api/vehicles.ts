@@ -24,13 +24,13 @@ export type VehicleListQuery = {
 
 export type RecordVehicleInput = {
   vin: string;
-  model_id: string;
+  model_id: number;
   entered_on: string;
 };
 
 export type CorrectVehicleInput = {
   vin?: string;
-  model_id?: string;
+  model_id?: number;
   entered_on?: string;
 };
 
@@ -61,8 +61,8 @@ export function listVehicles(query: VehicleListQuery) {
   );
 }
 
-export function getVehicle(id: string): Promise<ApiVehicle> {
-  return getData<ApiVehicle>(`/api/v1/vehicles/${encodeURIComponent(id)}`);
+export function getVehicle(id: number): Promise<ApiVehicle> {
+  return getData<ApiVehicle>(`/api/v1/vehicles/${id}`);
 }
 
 export function createVehicle(input: RecordVehicleInput): Promise<ApiVehicle> {
@@ -70,23 +70,17 @@ export function createVehicle(input: RecordVehicleInput): Promise<ApiVehicle> {
 }
 
 export function correctVehicle(
-  id: string,
+  id: number,
   input: CorrectVehicleInput,
 ): Promise<ApiVehicle> {
-  return patchJSON<ApiVehicle>(
-    `/api/v1/vehicles/${encodeURIComponent(id)}`,
-    input,
-  );
+  return patchJSON<ApiVehicle>(`/api/v1/vehicles/${id}`, input);
 }
 
 export function stockOutVehicle(
-  id: string,
+  id: number,
   input: StockOutVehicleInput,
 ): Promise<ApiVehicle> {
-  return postJSON<ApiVehicle>(
-    `/api/v1/vehicles/${encodeURIComponent(id)}/stock-out`,
-    input,
-  );
+  return postJSON<ApiVehicle>(`/api/v1/vehicles/${id}/stock-out`, input);
 }
 
 export type SetProposedActionInput = {
@@ -94,11 +88,11 @@ export type SetProposedActionInput = {
 };
 
 export function setProposedAction(
-  id: string,
+  id: number,
   input: SetProposedActionInput,
 ): Promise<ApiVehicle> {
   return putJSON<ApiVehicle>(
-    `/api/v1/vehicles/${encodeURIComponent(id)}/proposed-action`,
+    `/api/v1/vehicles/${id}/proposed-action`,
     input,
   );
 }

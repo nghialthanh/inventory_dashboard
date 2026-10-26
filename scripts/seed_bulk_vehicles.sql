@@ -9,12 +9,7 @@
 
 WITH model_ids AS (
     SELECT ARRAY[
-        '22222222-2222-4222-8222-222222222201'::uuid,
-        '22222222-2222-4222-8222-222222222202'::uuid,
-        '22222222-2222-4222-8222-222222222203'::uuid,
-        '22222222-2222-4222-8222-222222222204'::uuid,
-        '22222222-2222-4222-8222-222222222205'::uuid,
-        '22222222-2222-4222-8222-222222222206'::uuid
+        1, 2, 3, 4, 5, 6
     ] AS ids
 ),
 today AS (
@@ -56,8 +51,8 @@ rows AS (
     CROSS JOIN today t
     CROSS JOIN alphabet a
 )
-INSERT INTO vehicles (id, vin, model_id, entered_on, stocked_out_on)
-SELECT gen_random_uuid(), vin, model_id, entered_on, stocked_out_on
+INSERT INTO vehicles (vin, model_id, entered_on, stocked_out_on)
+SELECT vin, model_id, entered_on, stocked_out_on
 FROM rows
 ON CONFLICT (vin) DO NOTHING;
 

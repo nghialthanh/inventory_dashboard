@@ -1,6 +1,6 @@
 # 08: Reject corrections after stock-out
 
-**What to build:** Once a vehicle is stocked out, the manager can no longer correct its VIN, its model, or entered on. The dashboard tells them the correction is rejected because the vehicle has stocked out.
+**Decision:** [ADR-0004](../../../docs/adr/0004-stocked-out-is-terminal.md) and [ADR-0006](../../../docs/adr/0006-uuid-vehicle-identity.md). This file is the acceptance checklist for those decisions.
 
 **Blocked by:** 05 Correct an in-stock vehicle, 06 Stock out a vehicle
 

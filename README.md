@@ -22,7 +22,7 @@ Dealership **inventory dashboard**: filter vehicles, identify **aging stock** (i
 |-----|---------|
 | [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) | Architecture, data flow, tech justifications, observability, GenAI in design |
 | [GLOSSARY.md](GLOSSARY.md) | Domain language |
-| [docs/adr/](docs/adr/) | Hard decisions (0001–0010) |
+| [docs/adr/](docs/adr/) | Hard decisions (0001–0011). The [index](docs/adr/README.md) pairs each decision with the issue that accepted it |
 | [docs/architecture/](docs/architecture/) | API outline, schema, directory layout |
 | [docs/api-curl-examples.md](docs/api-curl-examples.md) | Client stub via cURL |
 | [.scratch/inventory-dashboard/spec.md](.scratch/inventory-dashboard/spec.md) | Scenario behavior |
@@ -31,7 +31,10 @@ Dealership **inventory dashboard**: filter vehicles, identify **aging stock** (i
 
 Docker Compose serves the API and the built screen together on port 8080. PostgreSQL is on port 5432. There is no sign-in.
 
+Addresses are integers ([ADR-0011](docs/adr/0011-integer-addresses.md)). A volume created before that change still has UUID columns. Drop it before starting, then Compose creates the new tables:
+
 ```bash
+docker compose down -v
 docker compose up --build
 ```
 

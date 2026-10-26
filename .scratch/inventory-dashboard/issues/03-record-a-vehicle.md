@@ -1,6 +1,6 @@
 # 03: Record a vehicle and see it on the list
 
-**What to build:** The manager records an in-stock vehicle with a VIN, a catalog model, and entered on, then sees it on the inventory list and on its own view. The row shows make, model, stock state, inventory age, and whether it is aging stock. The manager can filter by make and model, page through the list, and understand an empty list, a failed load, and a rejected VIN.
+**Decision:** [ADR-0005](../../../docs/adr/0005-stock-state-from-stocked-out-on.md) and [ADR-0006](../../../docs/adr/0006-uuid-vehicle-identity.md). This file is the acceptance checklist for those decisions.
 
 **Blocked by:** 02 Choose make and model from the catalog
 

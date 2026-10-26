@@ -6,3 +6,5 @@ Vehicle images are out of scope. The written brief treats object storage as opti
 
 - Keep MinIO for an optional primary image. An extra service, credentials, and routes for a feature the brief does not require.
 - Store image bytes in Postgres or on the API disk. Still an image product the assessment does not ask for.
+
+[10](../../.scratch/inventory-dashboard/issues/10-attach-a-primary-image.md) is withdrawn by this decision.

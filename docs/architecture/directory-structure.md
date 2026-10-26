@@ -10,7 +10,7 @@ inventory_dashboard/
 ├── GLOSSARY.md
 ├── initial-prompt.md
 ├── docs/
-│   ├── adr/                      # Hard decisions (0001–0010…)
+│   ├── adr/                      # Hard decisions (0001–0011). README.md pairs each with its issue
 │   └── architecture/             # Living contract
 ├── .cursor/rules/                # Agent coding rules
 ├── backend/                      # Go API (+ serves static UI in Compose)
@@ -72,6 +72,7 @@ backend/
 │   │   ├── catalog.go
 │   │   └── vehicles.go
 │   ├── logic/                           # implements services
+│   │   ├── address/                     # parse a catalog or vehicle address
 │   │   ├── catalog/
 │   │   ├── vehicle/                     # stock-out, patch rules, VIN
 │   │   ├── aging/                       # inventory age + is_aging

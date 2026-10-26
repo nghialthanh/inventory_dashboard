@@ -1,18 +1,18 @@
 package catalog
 
 import (
-	"github.com/google/uuid"
-
-	apperrors "inventory_dashboard/internal/common/errors"
+	"inventory_dashboard/internal/logic/address"
 )
 
-// ParseMakeID accepts an empty filter or one make UUID.
-func ParseMakeID(raw string) (*string, error) {
+// ParseMakeID accepts an empty filter or one make address.
+func ParseMakeID(raw string) (*int32, error) {
 	if raw == "" {
 		return nil, nil
 	}
-	if _, err := uuid.Parse(raw); err != nil {
-		return nil, apperrors.ErrValidation
+	value, err := address.Parse(raw, address.MaxCatalogID)
+	if err != nil {
+		return nil, err
 	}
-	return &raw, nil
+	id := int32(value)
+	return &id, nil
 }

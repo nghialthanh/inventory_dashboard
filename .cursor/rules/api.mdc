@@ -9,7 +9,7 @@ alwaysApply: false
 Contract: `docs/architecture/api-outline.md`. Register every path in `backend/internal/app/routes/v1/routes.go`.
 
 - JSON is snake_case inside `{ code, message, data, meta? }` via `dto.Success` / `dto.Error`.
-- Path id is the vehicle UUID. VIN is a body or query field.
+- Path id is the vehicle address, a positive integer. VIN is a body or query field.
 - Catalog reads under `/api/v1/catalog`.
 - Correct fields with `PATCH /api/v1/vehicles/:id`.
 - Stock out with `POST …/stock-out`.

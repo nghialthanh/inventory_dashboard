@@ -6,3 +6,5 @@ Make and model are chosen from a seeded catalog so a vehicle cannot be stored un
 
 - Free-text make and model on the vehicle. Simpler to enter, and it breaks “choose from a list.”
 - A model table with the make name copied onto each row. The same make is then spelled many ways.
+
+Accepted in [02](../../.scratch/inventory-dashboard/issues/02-choose-make-and-model.md).

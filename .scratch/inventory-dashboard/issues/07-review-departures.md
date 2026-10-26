@@ -1,6 +1,6 @@
 # 07: Review departures
 
-**What to build:** The manager filters the list to vehicles in stock or stocked out, and to vehicles stocked out on one calendar day. They can correct a wrong stocked-out on date. They cannot clear that date or move it outside the vehicle's stay.
+**Decision:** [ADR-0001](../../../docs/adr/0001-retain-stocked-out-vehicles.md) and [ADR-0004](../../../docs/adr/0004-stocked-out-is-terminal.md). This file is the acceptance checklist for those decisions.
 
 **Blocked by:** 06 Stock out a vehicle
 

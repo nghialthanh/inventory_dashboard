@@ -5,3 +5,5 @@ A vehicle is in stock when stocked-out on is empty, and stocked out when that da
 ## Considered options
 
 - A status value plus a date. Those two can diverge: stocked out with no date, or in stock with a departure date. Every filter would then need a tie-break.
+
+Accepted in [03](../../.scratch/inventory-dashboard/issues/03-record-a-vehicle.md) and [06](../../.scratch/inventory-dashboard/issues/06-stock-out-a-vehicle.md).

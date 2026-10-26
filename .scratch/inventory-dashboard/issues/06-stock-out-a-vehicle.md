@@ -1,6 +1,6 @@
 # 06: Stock out a vehicle
 
-**What to build:** The manager records the calendar day a vehicle stocked out. The vehicle stays on the list as stocked out, looks different from vehicles still in stock, and stops counting as aging stock. Its inventory age stops on stocked-out on. The same VIN cannot be recorded again, and the vehicle cannot return to in stock.
+**Decision:** [ADR-0001](../../../docs/adr/0001-retain-stocked-out-vehicles.md), [ADR-0004](../../../docs/adr/0004-stocked-out-is-terminal.md), [ADR-0005](../../../docs/adr/0005-stock-state-from-stocked-out-on.md), and [ADR-0007](../../../docs/adr/0007-separate-commands.md). This file is the acceptance checklist for those decisions.
 
 **Blocked by:** 03 Record a vehicle and see it on the list
 

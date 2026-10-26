@@ -4,13 +4,13 @@ import "time"
 
 // Ref is an id and display name embedded on a vehicle.
 type Ref struct {
-	ID   string `json:"id"`
+	ID   int32  `json:"id"`
 	Name string `json:"name"`
 }
 
 // Vehicle is the list and detail shape.
 type Vehicle struct {
-	ID             string  `json:"id"`
+	ID             int64   `json:"id"`
 	VIN            string  `json:"vin"`
 	Make           Ref     `json:"make"`
 	Model          Ref     `json:"model"`
@@ -24,7 +24,7 @@ type Vehicle struct {
 
 // StoredVehicle is a vehicle row before derived fields are applied.
 type StoredVehicle struct {
-	ID             string
+	ID             int64
 	VIN            string
 	Make           Ref
 	Model          Ref

@@ -47,7 +47,7 @@ export function RecordVehicleDialog() {
     try {
       await create.mutateAsync({
         vin,
-        model_id: modelId,
+        model_id: Number(modelId),
         entered_on: enteredOn,
       });
       setVin("");
@@ -111,7 +111,7 @@ export function RecordVehicleDialog() {
                 >
                   <option value="">Choose a make</option>
                   {(makes.data ?? []).map((make) => (
-                    <option key={make.id} value={make.id}>
+                    <option key={make.id} value={String(make.id)}>
                       {make.name}
                     </option>
                   ))}
@@ -126,7 +126,7 @@ export function RecordVehicleDialog() {
                 >
                   <option value="">Choose a model</option>
                   {(models.data ?? []).map((model) => (
-                    <option key={model.id} value={model.id}>
+                    <option key={model.id} value={String(model.id)}>
                       {model.name}
                     </option>
                   ))}

@@ -6,3 +6,5 @@ This is an interview assessment, so Compose stays small. It runs Postgres and th
 
 - A separate nginx container that proxies `/api`. One more process, and it does not exercise the inventory rules.
 - The API and the UI on separate ports, with CORS. A second origin to explain for the same screen.
+
+Accepted in [01](../../.scratch/inventory-dashboard/issues/01-open-the-empty-dashboard.md).

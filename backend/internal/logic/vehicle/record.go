@@ -7,8 +7,6 @@ import (
 
 	apperrors "inventory_dashboard/internal/common/errors"
 	"inventory_dashboard/internal/logic/aging"
-
-	"github.com/google/uuid"
 )
 
 var vinPattern = regexp.MustCompile(`^[A-HJ-NPR-Z0-9]{17}$`)
@@ -70,10 +68,10 @@ func ParseStockedOutOn(raw string, enteredOn, today time.Time) (time.Time, error
 	return stockedOutOn, nil
 }
 
-// ParseModelID requires a model UUID.
-func ParseModelID(raw string) (string, error) {
-	if _, err := uuid.Parse(strings.TrimSpace(raw)); err != nil {
-		return "", apperrors.ErrValidation
+// AcceptModelID requires a catalog address that arrived as a JSON number.
+func AcceptModelID(id int32) error {
+	if id < 1 {
+		return apperrors.ErrValidation
 	}
-	return strings.TrimSpace(raw), nil
+	return nil
 }

@@ -7,12 +7,16 @@ How a dealership records the cars it holds, how long they have been held, and wh
 ### Identity
 
 **Vehicle**:
-A single physical car the dealership records for sale, identified by its VIN.
+A single physical car the dealership records for sale. Its business identity is its VIN.
 _Avoid_: unit, stock item, car
 
 **VIN**:
 The business identity of a vehicle. No two vehicles share a VIN.
-_Avoid_: stock number, serial number
+_Avoid_: stock number, serial number, vehicle address
+
+**Vehicle address**:
+The stable handle that opens one vehicle. It stays the same when the VIN is corrected.
+_Avoid_: VIN, stock number
 
 **In stock**:
 A vehicle the dealership currently holds for sale.

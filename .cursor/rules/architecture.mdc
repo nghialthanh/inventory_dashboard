@@ -17,7 +17,7 @@ HTTP adapters bind, call an interface in `internal/services`, and map errors. Lo
 | Inventory age | Calendar days from `entered_on`; stops on `stocked_out_on` when set |
 | Aging stock | In stock and inventory age > 90. The API owns this rule |
 | Stocked out | Row stays (ADR-0001). No return to in stock. VIN is never reused (ADR-0004) |
-| Identity | UUID in the URL. VIN unique. VIN correctable only while in stock (ADR-0006) |
+| Identity | Vehicle address is a PostgreSQL bigint, and the API rejects a value above 2^53−1. Make and model addresses are identity integers. VIN is the business identity, unique, and correctable only while in stock (ADR-0006, ADR-0011) |
 | Catalog | Vehicle stores `model_id` (ADR-0002) |
 | Commands | Stock-out and proposed action are separate routes (ADR-0007) |
 | Proposed action | Optional: price reduction planned, wholesale planned, or hold. A new value replaces the last |

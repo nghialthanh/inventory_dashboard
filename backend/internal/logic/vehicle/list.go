@@ -5,15 +5,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	apperrors "inventory_dashboard/internal/common/errors"
+	"inventory_dashboard/internal/logic/address"
 )
 
 // ListQuery is a parsed inventory list request.
 type ListQuery struct {
-	MakeID       string
-	ModelID      string
+	MakeID       int32
+	ModelID      int32
 	StockState   string
 	StockedOutOn string
 	AgingOnly    bool
@@ -46,16 +45,18 @@ func ParseList(makeID, modelID, stockState, stockedOutOn, aging, pageRaw, sizeRa
 		query.StockedOutOn = trimmed
 	}
 	if strings.TrimSpace(makeID) != "" {
-		if _, err := uuid.Parse(makeID); err != nil {
-			return ListQuery{}, apperrors.ErrValidation
+		parsed, err := address.Parse(makeID, address.MaxCatalogID)
+		if err != nil {
+			return ListQuery{}, err
 		}
-		query.MakeID = makeID
+		query.MakeID = int32(parsed)
 	}
 	if strings.TrimSpace(modelID) != "" {
-		if _, err := uuid.Parse(modelID); err != nil {
-			return ListQuery{}, apperrors.ErrValidation
+		parsed, err := address.Parse(modelID, address.MaxCatalogID)
+		if err != nil {
+			return ListQuery{}, err
 		}
-		query.ModelID = modelID
+		query.ModelID = int32(parsed)
 	}
 	if pageRaw != "" {
 		page, err := strconv.Atoi(pageRaw)
@@ -77,10 +78,7 @@ func ParseList(makeID, modelID, stockState, stockedOutOn, aging, pageRaw, sizeRa
 	return query, nil
 }
 
-// ParseVehicleID requires the vehicle UUID from the address.
-func ParseVehicleID(raw string) (string, error) {
-	if _, err := uuid.Parse(raw); err != nil {
-		return "", apperrors.ErrValidation
-	}
-	return raw, nil
+// ParseVehicleID requires the vehicle address from the URL.
+func ParseVehicleID(raw string) (int64, error) {
+	return address.Parse(raw, address.MaxVehicleID)
 }

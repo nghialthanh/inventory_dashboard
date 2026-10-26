@@ -13,8 +13,8 @@ export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
   const dialogId = `correct-vehicle-${vehicle.id}`;
   const [open, setOpen] = useState(false);
   const [vin, setVin] = useState(vehicle.vin);
-  const [makeId, setMakeId] = useState(vehicle.make.id);
-  const [modelId, setModelId] = useState(vehicle.model.id);
+  const [makeId, setMakeId] = useState(String(vehicle.make.id));
+  const [modelId, setModelId] = useState(String(vehicle.model.id));
   const [enteredOn, setEnteredOn] = useState(vehicle.entered_on);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [toast, setToast] = useState<string | null>(null);
@@ -44,12 +44,12 @@ export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
       return;
     }
 
-    const input: { vin?: string; model_id?: string; entered_on?: string } = {};
+    const input: { vin?: string; model_id?: number; entered_on?: string } = {};
     if (vin.trim() !== vehicle.vin) {
       input.vin = vin;
     }
-    if (modelId !== vehicle.model.id) {
-      input.model_id = modelId;
+    if (modelId !== String(vehicle.model.id)) {
+      input.model_id = Number(modelId);
     }
     if (enteredOn !== vehicle.entered_on) {
       input.entered_on = enteredOn;
@@ -77,8 +77,8 @@ export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
         className="mt-4 border border-[#1c2b24] px-3 py-1 text-sm text-[#1c2b24]"
         onClick={() => {
           setVin(vehicle.vin);
-          setMakeId(vehicle.make.id);
-          setModelId(vehicle.model.id);
+          setMakeId(String(vehicle.make.id));
+          setModelId(String(vehicle.model.id));
           setEnteredOn(vehicle.entered_on);
           setErrors({});
           setToast(null);
@@ -123,7 +123,7 @@ export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
                 >
                   <option value="">Choose a make</option>
                   {(makes.data ?? []).map((make) => (
-                    <option key={make.id} value={make.id}>
+                    <option key={make.id} value={String(make.id)}>
                       {make.name}
                     </option>
                   ))}
@@ -138,7 +138,7 @@ export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
                 >
                   <option value="">Choose a model</option>
                   {(models.data ?? []).map((model) => (
-                    <option key={model.id} value={model.id}>
+                    <option key={model.id} value={String(model.id)}>
                       {model.name}
                     </option>
                   ))}

@@ -3,6 +3,7 @@ package routes_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -13,17 +14,16 @@ import (
 	"inventory_dashboard/internal/logic/catalog"
 	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
-	"inventory_dashboard/pkg/database"
 )
 
 const (
-	fordID    = "11111111-1111-4111-8111-111111111101"
-	hondaID   = "11111111-1111-4111-8111-111111111102"
-	f150ID    = "22222222-2222-4222-8222-222222222201"
-	civicID   = "22222222-2222-4222-8222-222222222204"
-	civicVIN  = "1HGCM82633A004352"
-	secondVIN = "2HGFG3B54GH123456"
-	thirdVIN  = "3N1AB7AP5HY123456"
+	fordID    int32 = 1
+	hondaID   int32 = 2
+	f150ID    int32 = 1
+	civicID   int32 = 4
+	civicVIN        = "1HGCM82633A004352"
+	secondVIN       = "2HGFG3B54GH123456"
+	thirdVIN        = "3N1AB7AP5HY123456"
 )
 
 func TestInventoryAgeBoundariesAndFutureEnteredOn(t *testing.T) {
@@ -48,15 +48,19 @@ func TestRejectedVINAndMissingFields(t *testing.T) {
 	srv := vehicleServer(t, time.Date(2026, 10, 26, 0, 0, 0, 0, time.UTC))
 
 	cases := []string{
-		`{"vin":"1HGCM82633A00435I","model_id":"` + civicID + `","entered_on":"2026-10-26"}`,
-		`{"vin":"1HGCM82633A00435O","model_id":"` + civicID + `","entered_on":"2026-10-26"}`,
-		`{"vin":"1HGCM82633A00435Q","model_id":"` + civicID + `","entered_on":"2026-10-26"}`,
-		`{"vin":"SHORT","model_id":"` + civicID + `","entered_on":"2026-10-26"}`,
-		`{"model_id":"` + civicID + `","entered_on":"2026-10-26"}`,
+		`{"vin":"1HGCM82633A00435I","model_id":4,"entered_on":"2026-10-26"}`,
+		`{"vin":"1HGCM82633A00435O","model_id":4,"entered_on":"2026-10-26"}`,
+		`{"vin":"1HGCM82633A00435Q","model_id":4,"entered_on":"2026-10-26"}`,
+		`{"vin":"SHORT","model_id":4,"entered_on":"2026-10-26"}`,
+		`{"model_id":4,"entered_on":"2026-10-26"}`,
 		`{"vin":"` + civicVIN + `","entered_on":"2026-10-26"}`,
-		`{"vin":"` + civicVIN + `","model_id":"` + civicID + `"}`,
-		`{"vin":"` + civicVIN + `","model_id":"33333333-3333-4333-8333-333333333333","entered_on":"2026-10-26"}`,
-		`{"vin":"not-a-uuid","model_id":"not-a-uuid","entered_on":"yesterday"}`,
+		`{"vin":"` + civicVIN + `","model_id":4}`,
+		`{"vin":"` + civicVIN + `","model_id":"4","entered_on":"2026-10-26"}`,
+		`{"vin":"` + civicVIN + `","model_id":1.5,"entered_on":"2026-10-26"}`,
+		`{"vin":"` + civicVIN + `","model_id":0,"entered_on":"2026-10-26"}`,
+		`{"vin":"` + civicVIN + `","model_id":-1,"entered_on":"2026-10-26"}`,
+		`{"vin":"` + civicVIN + `","model_id":2147483648,"entered_on":"2026-10-26"}`,
+		`{"vin":"not-a-uuid","model_id":4,"entered_on":"yesterday"}`,
 	}
 	for _, body := range cases {
 		rec := postJSON(t, srv, "/api/v1/vehicles", body)
@@ -123,13 +127,13 @@ func TestStockedOutStayStopsAgeAndKeepsTheVIN(t *testing.T) {
 	today := time.Date(2026, 10, 26, 0, 0, 0, 0, time.UTC)
 	ctx := context.Background()
 	pool := testCatalogDB(t)
-	if err := database.Migrate(ctx, pool); err != nil {
+	if err := resetSchema(ctx, pool); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `TRUNCATE vehicles`); err != nil {
 		t.Fatalf("truncate vehicles: %v", err)
 	}
-	const id = "55555555-5555-4555-8555-555555555555"
+	const id int64 = 100
 	if _, err := pool.Exec(ctx, `
 		INSERT INTO vehicles (id, vin, model_id, entered_on, stocked_out_on)
 		VALUES ($1, $2, $3, DATE '2026-07-01', DATE '2026-07-11')
@@ -142,7 +146,7 @@ func TestStockedOutStayStopsAgeAndKeepsTheVIN(t *testing.T) {
 		Catalog:  catalog.New(catalogRepo),
 		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
 	})
-	rec := request(t, srv, http.MethodGet, "/api/v1/vehicles/"+id)
+	rec := request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(id))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -160,11 +164,19 @@ func TestStockedOutStayStopsAgeAndKeepsTheVIN(t *testing.T) {
 
 func TestUnknownVehicleAddress(t *testing.T) {
 	srv := vehicleServer(t, time.Date(2026, 10, 26, 0, 0, 0, 0, time.UTC))
-	unknown := request(t, srv, http.MethodGet, "/api/v1/vehicles/44444444-4444-4444-8444-444444444444")
+	unknown := request(t, srv, http.MethodGet, "/api/v1/vehicles/999999")
 	assertAPIError(t, unknown, http.StatusNotFound, "NOT_FOUND")
 
-	bad := request(t, srv, http.MethodGet, "/api/v1/vehicles/not-a-vehicle")
-	assertAPIError(t, bad, http.StatusBadRequest, "VALIDATION_ERROR")
+	for _, path := range []string{
+		"/api/v1/vehicles/not-a-vehicle",
+		"/api/v1/vehicles/0",
+		"/api/v1/vehicles/-1",
+		"/api/v1/vehicles/1.5",
+		"/api/v1/vehicles/9007199254740992",
+	} {
+		bad := request(t, srv, http.MethodGet, path)
+		assertAPIError(t, bad, http.StatusBadRequest, "VALIDATION_ERROR")
+	}
 }
 
 func TestListOrderPagingAndEmptyInventory(t *testing.T) {
@@ -189,7 +201,7 @@ func TestListOrderPagingAndEmptyInventory(t *testing.T) {
 	}
 	list := listVehicles(t, srv, "")
 	if len(list.Data) != 3 || list.Data[0].ID != first || list.Data[1].ID != second || list.Data[2].ID != later.ID {
-		t.Fatalf("order = %s %s %s, want %s %s %s", list.Data[0].ID, list.Data[1].ID, list.Data[2].ID, first, second, later.ID)
+		t.Fatalf("order = %d %d %d, want %d %d %d", list.Data[0].ID, list.Data[1].ID, list.Data[2].ID, first, second, later.ID)
 	}
 
 	page := listVehicles(t, srv, "?page_size=2")
@@ -217,13 +229,13 @@ func TestAgingOnlyFilterAndInventoryAgeBoundaries(t *testing.T) {
 	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
 	ctx := context.Background()
 	pool := testCatalogDB(t)
-	if err := database.Migrate(ctx, pool); err != nil {
+	if err := resetSchema(ctx, pool); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `TRUNCATE vehicles`); err != nil {
 		t.Fatalf("truncate vehicles: %v", err)
 	}
-	const stayedID = "55555555-5555-4555-8555-555555555505"
+	const stayedID int64 = 101
 	const stayedVIN = "5NPE24AF5FH123456"
 	if _, err := pool.Exec(ctx, `
 		INSERT INTO vehicles (id, vin, model_id, entered_on, stocked_out_on)
@@ -272,9 +284,9 @@ func TestCorrectingAnInStockVehicleKeepsItsAddress(t *testing.T) {
 	srv := vehicleServer(t, today)
 	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-26")
 
-	rec := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{
+	rec := patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{
 		"vin": " 2hgfg3b54gh123456 ",
-		"model_id": "`+f150ID+`",
+		"model_id": 1,
 		"entered_on": "2026-07-27"
 	}`)
 	if rec.Code != http.StatusOK {
@@ -283,18 +295,18 @@ func TestCorrectingAnInStockVehicleKeepsItsAddress(t *testing.T) {
 	corrected := decodeVehicle(t, rec.Body.Bytes())
 	assertCorrected(t, corrected, created.ID)
 
-	view := request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID)
+	view := request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.ID))
 	if view.Code != http.StatusOK {
 		t.Fatalf("view status = %d, body = %s", view.Code, view.Body.String())
 	}
 	assertCorrected(t, decodeVehicle(t, view.Body.Bytes()), created.ID)
 }
 
-func assertCorrected(t *testing.T, body vehicleBody, id string) {
+func assertCorrected(t *testing.T, body vehicleBody, id int64) {
 	t.Helper()
 	v := body.Data
 	if body.Message != "ok" || v.ID != id {
-		t.Fatalf("address = %s message = %q, want %s and ok", v.ID, body.Message, id)
+		t.Fatalf("address = %d message = %q, want %d and ok", v.ID, body.Message, id)
 	}
 	if v.VIN != secondVIN || v.Make.Name != "Ford" || v.Model.Name != "F-150" {
 		t.Fatalf("identity = %s %s %s, want %s Ford F-150", v.VIN, v.Make.Name, v.Model.Name, secondVIN)
@@ -312,7 +324,7 @@ func TestCorrectionKeepsASubsetAndRejectsOtherCommands(t *testing.T) {
 	srv := vehicleServer(t, today)
 	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-01")
 
-	onlyVIN := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"vin":" `+secondVIN+` "}`)
+	onlyVIN := patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{"vin":" `+secondVIN+` "}`)
 	if onlyVIN.Code != http.StatusOK {
 		t.Fatalf("vin correction status = %d, body = %s", onlyVIN.Code, onlyVIN.Body.String())
 	}
@@ -321,7 +333,7 @@ func TestCorrectionKeepsASubsetAndRejectsOtherCommands(t *testing.T) {
 		t.Fatalf("vin-only correction = %+v", vinOnly)
 	}
 
-	onlyModel := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"model_id":"`+f150ID+`"}`)
+	onlyModel := patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{"model_id":1}`)
 	if onlyModel.Code != http.StatusOK {
 		t.Fatalf("model correction status = %d, body = %s", onlyModel.Code, onlyModel.Body.String())
 	}
@@ -330,7 +342,7 @@ func TestCorrectionKeepsASubsetAndRejectsOtherCommands(t *testing.T) {
 		t.Fatalf("model-only correction = %+v", modelOnly)
 	}
 
-	onlyEntered := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"entered_on":"2026-07-28"}`)
+	onlyEntered := patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{"entered_on":"2026-07-28"}`)
 	if onlyEntered.Code != http.StatusOK {
 		t.Fatalf("entered-on correction status = %d, body = %s", onlyEntered.Code, onlyEntered.Body.String())
 	}
@@ -339,15 +351,15 @@ func TestCorrectionKeepsASubsetAndRejectsOtherCommands(t *testing.T) {
 		t.Fatalf("entered-on-only correction = %+v", enteredOnly)
 	}
 
-	mixed := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{
+	mixed := patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{
 		"entered_on": "2026-07-28",
 		"proposed_action": "hold",
 		"stocked_out_on": "2026-10-01"
 	}`)
 	assertAPIError(t, mixed, http.StatusBadRequest, "VALIDATION_ERROR")
-	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{}`), http.StatusBadRequest, "VALIDATION_ERROR")
 
-	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
+	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.ID)).Body.Bytes()).Data
 	if kept.ID != created.ID || kept.VIN != secondVIN || kept.EnteredOn != "2026-07-28" || kept.Model.Name != "F-150" {
 		t.Fatalf("vehicle changed after a rejected correction: %+v", kept)
 	}
@@ -360,13 +372,13 @@ func TestCorrectedVINStaysUniqueAndEnteredOnCannotBeAfterToday(t *testing.T) {
 	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
 	ctx := context.Background()
 	pool := testCatalogDB(t)
-	if err := database.Migrate(ctx, pool); err != nil {
+	if err := resetSchema(ctx, pool); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `TRUNCATE vehicles`); err != nil {
 		t.Fatalf("truncate vehicles: %v", err)
 	}
-	const stayedID = "55555555-5555-4555-8555-555555555506"
+	const stayedID int64 = 102
 	if _, err := pool.Exec(ctx, `
 		INSERT INTO vehicles (id, vin, model_id, entered_on, stocked_out_on)
 		VALUES ($1, $2, $3, DATE '2026-07-01', DATE '2026-07-11')
@@ -381,18 +393,18 @@ func TestCorrectedVINStaysUniqueAndEnteredOnCannotBeAfterToday(t *testing.T) {
 	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-26")
 	recordVehicle(t, srv, secondVIN, f150ID, "2026-10-02")
 
-	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"entered_on":"2026-10-27"}`), http.StatusBadRequest, "VALIDATION_ERROR")
-	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"vin":"1HGCM82633A00435I"}`), http.StatusBadRequest, "VALIDATION_ERROR")
-	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"model_id":"33333333-3333-4333-8333-333333333333"}`), http.StatusBadRequest, "VALIDATION_ERROR")
-	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"vin":"`+secondVIN+`"}`), http.StatusConflict, "CONFLICT")
-	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"vin":"`+thirdVIN+`"}`), http.StatusConflict, "CONFLICT")
-	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+stayedID, `{"vin":"JH4KA4650MC123456"}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{"entered_on":"2026-10-27"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{"vin":"1HGCM82633A00435I"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{"model_id":999999}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{"vin":"`+secondVIN+`"}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{"vin":"`+thirdVIN+`"}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, patchJSON(t, srv, "/api/v1/vehicles/"+addr(stayedID), `{"vin":"JH4KA4650MC123456"}`), http.StatusConflict, "CONFLICT")
 
-	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
+	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.ID)).Body.Bytes()).Data
 	if kept.VIN != civicVIN || kept.EnteredOn != "2026-10-26" || kept.Model.ID != civicID || kept.StockState != "in_stock" {
 		t.Fatalf("in-stock vehicle changed after rejected corrections: %+v", kept)
 	}
-	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+stayedID).Body.Bytes()).Data
+	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(stayedID)).Body.Bytes()).Data
 	if stayed.VIN != thirdVIN || stayed.StockState != "stocked_out" || stayed.InventoryAge != 10 || stayed.IsAging {
 		t.Fatalf("stocked-out vehicle changed: %+v", stayed)
 	}
@@ -403,20 +415,20 @@ func TestMakeAndModelFilters(t *testing.T) {
 	ford := recordVehicle(t, srv, civicVIN, f150ID, "2026-10-01")
 	honda := recordVehicle(t, srv, secondVIN, civicID, "2026-10-02")
 
-	byMake := listVehicles(t, srv, "?make_id="+fordID)
+	byMake := listVehicles(t, srv, fmt.Sprintf("?make_id=%d", fordID))
 	if byMake.Meta.Total != 1 || byMake.Data[0].ID != ford.ID || byMake.Data[0].Make.Name != "Ford" {
 		t.Fatalf("make filter = %+v", byMake.Data)
 	}
-	byModel := listVehicles(t, srv, "?model_id="+civicID)
+	byModel := listVehicles(t, srv, fmt.Sprintf("?model_id=%d", civicID))
 	if byModel.Meta.Total != 1 || byModel.Data[0].ID != honda.ID || byModel.Data[0].Model.Name != "Civic" {
 		t.Fatalf("model filter = %+v", byModel.Data)
 	}
-	both := listVehicles(t, srv, "?make_id="+hondaID+"&model_id="+civicID)
+	both := listVehicles(t, srv, fmt.Sprintf("?make_id=%d&model_id=%d", hondaID, civicID))
 	if both.Meta.Total != 1 || both.Data[0].ID != honda.ID {
 		t.Fatalf("make and model filter = %+v", both.Data)
 	}
 
-	mismatch := request(t, srv, http.MethodGet, "/api/v1/vehicles?make_id="+fordID+"&model_id="+civicID)
+	mismatch := request(t, srv, http.MethodGet, fmt.Sprintf("/api/v1/vehicles?make_id=%d&model_id=%d", fordID, civicID))
 	assertAPIError(t, mismatch, http.StatusBadRequest, "VALIDATION_ERROR")
 	assertAPIError(t, request(t, srv, http.MethodGet, "/api/v1/vehicles?make_id=bad"), http.StatusBadRequest, "VALIDATION_ERROR")
 }
@@ -426,7 +438,7 @@ func TestStockOutKeepsTheVehicleListedAsStockedOut(t *testing.T) {
 	srv := vehicleServer(t, today)
 	created := recordVehicle(t, srv, civicVIN, civicID, "2026-07-01")
 
-	rec := postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{"stocked_out_on":"2026-10-10"}`)
+	rec := postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{"stocked_out_on":"2026-10-10"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("stock-out status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -436,7 +448,7 @@ func TestStockOutKeepsTheVehicleListedAsStockedOut(t *testing.T) {
 	}
 	v := departed.Data
 	if v.ID != created.ID || v.VIN != civicVIN {
-		t.Fatalf("identity = %s %s, want %s %s", v.ID, v.VIN, created.ID, civicVIN)
+		t.Fatalf("identity = %d %s, want %d %s", v.ID, v.VIN, created.ID, civicVIN)
 	}
 	if v.StockedOutOn == nil || *v.StockedOutOn != "2026-10-10" || v.StockState != "stocked_out" {
 		t.Fatalf("departure = stocked_out_on %v state %s, want 2026-10-10 stocked_out", v.StockedOutOn, v.StockState)
@@ -463,13 +475,13 @@ func TestStockOutRejectsBadDatesAndUnknownVehicles(t *testing.T) {
 	srv := vehicleServer(t, today)
 	created := recordVehicle(t, srv, civicVIN, civicID, "2026-10-01")
 
-	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{"stocked_out_on":"2026-09-30"}`), http.StatusBadRequest, "VALIDATION_ERROR")
-	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{"stocked_out_on":"2026-10-27"}`), http.StatusBadRequest, "VALIDATION_ERROR")
-	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{"stocked_out_on":""}`), http.StatusBadRequest, "VALIDATION_ERROR")
-	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{}`), http.StatusBadRequest, "VALIDATION_ERROR")
-	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/44444444-4444-4444-8444-444444444444/stock-out", `{"stocked_out_on":"2026-10-26"}`), http.StatusNotFound, "NOT_FOUND")
+	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{"stocked_out_on":"2026-09-30"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{"stocked_out_on":"2026-10-27"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{"stocked_out_on":""}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/999999/stock-out", `{"stocked_out_on":"2026-10-26"}`), http.StatusNotFound, "NOT_FOUND")
 
-	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
+	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.ID)).Body.Bytes()).Data
 	if kept.StockState != "in_stock" || kept.StockedOutOn != nil {
 		t.Fatalf("vehicle changed after rejected stock-out: %+v", kept)
 	}
@@ -480,7 +492,7 @@ func TestStockOutVINStaysUsedAndDepartureCannotReopen(t *testing.T) {
 	srv := vehicleServer(t, today)
 	created := recordVehicle(t, srv, civicVIN, civicID, "2026-07-01")
 
-	rec := postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{"stocked_out_on":"2026-10-10"}`)
+	rec := postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{"stocked_out_on":"2026-10-10"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("stock-out status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -495,7 +507,7 @@ func TestStockOutVINStaysUsedAndDepartureCannotReopen(t *testing.T) {
 		t.Fatalf("message = %q, want VIN is already used", conflict.Message)
 	}
 
-	reopen := postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{"stocked_out_on":null}`)
+	reopen := postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{"stocked_out_on":null}`)
 	assertAPIError(t, reopen, http.StatusConflict, "CONFLICT")
 	var body errorJSON
 	if err := json.Unmarshal(reopen.Body.Bytes(), &body); err != nil {
@@ -505,7 +517,7 @@ func TestStockOutVINStaysUsedAndDepartureCannotReopen(t *testing.T) {
 		t.Fatalf("message = %q, want The departure stands.", body.Message)
 	}
 
-	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
+	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.ID)).Body.Bytes()).Data
 	if stayed.StockState != "stocked_out" || stayed.StockedOutOn == nil || *stayed.StockedOutOn != "2026-10-10" || stayed.InventoryAge != 101 || stayed.IsAging {
 		t.Fatalf("after reopen attempt = %+v, want stocked_out 2026-10-10 age 101 not aging", stayed)
 	}
@@ -515,16 +527,16 @@ func TestDemoStockedOutVehicleIsPresentOnFirstOpen(t *testing.T) {
 	today := time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
 	ctx := context.Background()
 	pool := testCatalogDB(t)
-	if err := database.Migrate(ctx, pool); err != nil {
+	if err := resetSchema(ctx, pool); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `TRUNCATE vehicles`); err != nil {
 		t.Fatalf("truncate vehicles: %v", err)
 	}
-	if err := database.Migrate(ctx, pool); err != nil {
+	if err := resetSchema(ctx, pool); err != nil {
 		t.Fatalf("reseed: %v", err)
 	}
-	const demoID = "55555555-5555-4555-8555-555555555504"
+	const demoID int64 = 4
 	// Seed dates follow CURRENT_TIMESTAMP; pin the demo stay to the fixed clock.
 	if _, err := pool.Exec(ctx, `
 		UPDATE vehicles
@@ -540,7 +552,7 @@ func TestDemoStockedOutVehicleIsPresentOnFirstOpen(t *testing.T) {
 		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
 	})
 
-	rec := request(t, srv, http.MethodGet, "/api/v1/vehicles/"+demoID)
+	rec := request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(demoID))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("demo status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -600,25 +612,25 @@ func TestListFiltersByStockStateAndStockedOutOn(t *testing.T) {
 
 	onDay := listVehicles(t, srv, "?stocked_out_on=2026-10-10")
 	if onDay.Meta.Total != 1 || len(onDay.Data) != 1 || onDay.Data[0].ID != dayA.ID {
-		t.Fatalf("stocked_out_on filter = %+v, want vehicle %s", onDay.Data, dayA.ID)
+		t.Fatalf("stocked_out_on filter = %+v, want vehicle %d", onDay.Data, dayA.ID)
 	}
 	if onDay.Data[0].StockedOutOn == nil || *onDay.Data[0].StockedOutOn != "2026-10-10" {
 		t.Fatalf("stocked_out_on = %v, want 2026-10-10", onDay.Data[0].StockedOutOn)
 	}
 
-	hondaOut := listVehicles(t, srv, "?make_id="+hondaID+"&stock_state=stocked_out")
+	hondaOut := listVehicles(t, srv, fmt.Sprintf("?make_id=%d&stock_state=stocked_out", hondaID))
 	if hondaOut.Meta.Total != 2 || len(hondaOut.Data) != 2 {
 		t.Fatalf("make + stocked_out = %+v, want both Honda departures", hondaOut.Data)
 	}
 
-	civicDay := listVehicles(t, srv, "?model_id="+civicID+"&stocked_out_on=2026-10-15")
+	civicDay := listVehicles(t, srv, fmt.Sprintf("?model_id=%d", civicID)+"&stocked_out_on=2026-10-15")
 	if civicDay.Meta.Total != 1 || civicDay.Data[0].ID != dayB.ID {
-		t.Fatalf("model + stocked_out_on = %+v, want %s", civicDay.Data, dayB.ID)
+		t.Fatalf("model + stocked_out_on = %+v, want %d", civicDay.Data, dayB.ID)
 	}
 
 	agingOnly := listVehicles(t, srv, "?aging=true&stock_state=in_stock")
 	if agingOnly.Meta.Total != 1 || agingOnly.Data[0].ID != aging.ID || !agingOnly.Data[0].IsAging {
-		t.Fatalf("aging + in_stock = %+v, want aging vehicle %s", agingOnly.Data, aging.ID)
+		t.Fatalf("aging + in_stock = %+v, want aging vehicle %d", agingOnly.Data, aging.ID)
 	}
 	agingOut := listVehicles(t, srv, "?aging=true&stock_state=stocked_out")
 	if agingOut.Meta.Total != 0 || len(agingOut.Data) != 0 {
@@ -627,7 +639,7 @@ func TestListFiltersByStockStateAndStockedOutOn(t *testing.T) {
 
 	kept := listVehicles(t, srv, "")
 	if kept.Meta.Total != 4 {
-		t.Fatalf("unfiltered total = %d, want 4 (in-stock %s still present)", kept.Meta.Total, inStock.ID)
+		t.Fatalf("unfiltered total = %d, want 4 (in-stock %d still present)", kept.Meta.Total, inStock.ID)
 	}
 
 	assertAPIError(t, request(t, srv, http.MethodGet, "/api/v1/vehicles?stock_state=sold"), http.StatusBadRequest, "VALIDATION_ERROR")
@@ -642,12 +654,12 @@ func TestCorrectionAfterStockOutIsRejectedAndFieldsStay(t *testing.T) {
 
 	attempts := []string{
 		`{"vin":"` + secondVIN + `"}`,
-		`{"model_id":"` + f150ID + `"}`,
+		`{"model_id":1}`,
 		`{"entered_on":"2026-08-01"}`,
-		`{"vin":"` + secondVIN + `","model_id":"` + f150ID + `","entered_on":"2026-08-01"}`,
+		`{"vin":"` + secondVIN + `","model_id":1,"entered_on":"2026-08-01"}`,
 	}
 	for _, body := range attempts {
-		rec := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, body)
+		rec := patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), body)
 		assertAPIError(t, rec, http.StatusConflict, "CONFLICT")
 		var errBody errorJSON
 		if err := json.Unmarshal(rec.Body.Bytes(), &errBody); err != nil {
@@ -658,7 +670,7 @@ func TestCorrectionAfterStockOutIsRejectedAndFieldsStay(t *testing.T) {
 		}
 	}
 
-	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
+	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.ID)).Body.Bytes()).Data
 	if stayed.VIN != civicVIN || stayed.Model.ID != civicID || stayed.EnteredOn != "2026-07-01" {
 		t.Fatalf("identity changed after rejected corrections: %+v", stayed)
 	}
@@ -678,7 +690,7 @@ func TestProposedActionOnAgingStockIsSetAndShown(t *testing.T) {
 		t.Fatalf("setup = age %d aging %v, want 91 true", aging.InventoryAge, aging.IsAging)
 	}
 
-	rec := putJSON(t, srv, "/api/v1/vehicles/"+aging.ID+"/proposed-action", `{"proposed_action":"price_reduction_planned"}`)
+	rec := putJSON(t, srv, "/api/v1/vehicles/"+addr(aging.ID)+"/proposed-action", `{"proposed_action":"price_reduction_planned"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("set status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -690,7 +702,7 @@ func TestProposedActionOnAgingStockIsSetAndShown(t *testing.T) {
 		t.Fatalf("after set = aging %v state %s, want aging in_stock", set.IsAging, set.StockState)
 	}
 
-	viewed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+aging.ID).Body.Bytes()).Data
+	viewed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(aging.ID)).Body.Bytes()).Data
 	if viewed.ProposedAction == nil || *viewed.ProposedAction != "price_reduction_planned" {
 		t.Fatalf("view proposed_action = %v, want price_reduction_planned", viewed.ProposedAction)
 	}
@@ -736,16 +748,16 @@ func TestProposedActionRejectedWhenNotAgingStock(t *testing.T) {
 	srv := vehicleServer(t, today)
 
 	fresh := recordVehicle(t, srv, civicVIN, civicID, "2026-10-26")
-	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+fresh.ID+"/proposed-action", `{"proposed_action":"hold"}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+addr(fresh.ID)+"/proposed-action", `{"proposed_action":"hold"}`), http.StatusConflict, "CONFLICT")
 
 	ninety := recordVehicle(t, srv, secondVIN, civicID, "2026-07-28")
 	if ninety.InventoryAge != 90 || ninety.IsAging {
 		t.Fatalf("90 days = age %d aging %v, want 90 false", ninety.InventoryAge, ninety.IsAging)
 	}
-	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+ninety.ID+"/proposed-action", `{"proposed_action":"hold"}`), http.StatusConflict, "CONFLICT")
-	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+ninety.ID+"/proposed-action", `{"proposed_action":""}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+addr(ninety.ID)+"/proposed-action", `{"proposed_action":"hold"}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+addr(ninety.ID)+"/proposed-action", `{"proposed_action":""}`), http.StatusConflict, "CONFLICT")
 
-	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+ninety.ID).Body.Bytes()).Data
+	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(ninety.ID)).Body.Bytes()).Data
 	if kept.ProposedAction != nil {
 		t.Fatalf("proposed_action after reject = %v, want none", kept.ProposedAction)
 	}
@@ -756,10 +768,10 @@ func TestProposedActionRejectsUnknownIntentions(t *testing.T) {
 	srv := vehicleServer(t, today)
 	aging := recordVehicle(t, srv, civicVIN, civicID, "2026-07-27")
 
-	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+aging.ID+"/proposed-action", `{"proposed_action":"discount"}`), http.StatusBadRequest, "VALIDATION_ERROR")
-	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+aging.ID+"/proposed-action", `{"proposed_action":"no_action"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+addr(aging.ID)+"/proposed-action", `{"proposed_action":"discount"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+addr(aging.ID)+"/proposed-action", `{"proposed_action":"no_action"}`), http.StatusBadRequest, "VALIDATION_ERROR")
 
-	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+aging.ID).Body.Bytes()).Data
+	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(aging.ID)).Body.Bytes()).Data
 	if kept.ProposedAction != nil {
 		t.Fatalf("proposed_action after reject = %v, want none", kept.ProposedAction)
 	}
@@ -779,22 +791,22 @@ func TestProposedActionStaysVisibleAfterStockOutAndFurtherChangeIsRejected(t *te
 		t.Fatalf("after stock-out = aging %v state %s, want stocked_out not aging", departed.IsAging, departed.StockState)
 	}
 
-	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+aging.ID+"/proposed-action", `{"proposed_action":"hold"}`), http.StatusConflict, "CONFLICT")
-	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+aging.ID+"/proposed-action", `{"proposed_action":""}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+addr(aging.ID)+"/proposed-action", `{"proposed_action":"hold"}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, putJSON(t, srv, "/api/v1/vehicles/"+addr(aging.ID)+"/proposed-action", `{"proposed_action":""}`), http.StatusConflict, "CONFLICT")
 
-	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+aging.ID).Body.Bytes()).Data
+	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(aging.ID)).Body.Bytes()).Data
 	if stayed.ProposedAction == nil || *stayed.ProposedAction != "wholesale_planned" {
 		t.Fatalf("after rejected change = %v, want wholesale_planned", stayed.ProposedAction)
 	}
 }
 
-func setProposedAction(t *testing.T, srv handler, id, value string) vehicleJSON {
+func setProposedAction(t *testing.T, srv handler, id int64, value string) vehicleJSON {
 	t.Helper()
 	raw, err := json.Marshal(map[string]string{"proposed_action": value})
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec := putJSON(t, srv, "/api/v1/vehicles/"+id+"/proposed-action", string(raw))
+	rec := putJSON(t, srv, "/api/v1/vehicles/"+addr(id)+"/proposed-action", string(raw))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("proposed-action status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -815,21 +827,21 @@ func TestLaterStockOutReplacesTheDateAndClearingIsRejected(t *testing.T) {
 		t.Fatalf("replaced stay = age %d aging %v, want 111 false", replaced.InventoryAge, replaced.IsAging)
 	}
 
-	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{"stocked_out_on":null}`), http.StatusConflict, "CONFLICT")
-	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{"stocked_out_on":""}`), http.StatusConflict, "CONFLICT")
-	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{"stocked_out_on":"2026-06-30"}`), http.StatusBadRequest, "VALIDATION_ERROR")
-	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+created.ID+"/stock-out", `{"stocked_out_on":"2026-10-27"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{"stocked_out_on":null}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{"stocked_out_on":""}`), http.StatusConflict, "CONFLICT")
+	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{"stocked_out_on":"2026-06-30"}`), http.StatusBadRequest, "VALIDATION_ERROR")
+	assertAPIError(t, postJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID)+"/stock-out", `{"stocked_out_on":"2026-10-27"}`), http.StatusBadRequest, "VALIDATION_ERROR")
 
-	viaPatch := patchJSON(t, srv, "/api/v1/vehicles/"+created.ID, `{"stocked_out_on":"2026-10-01"}`)
+	viaPatch := patchJSON(t, srv, "/api/v1/vehicles/"+addr(created.ID), `{"stocked_out_on":"2026-10-01"}`)
 	assertAPIError(t, viaPatch, http.StatusBadRequest, "VALIDATION_ERROR")
 
-	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.ID).Body.Bytes()).Data
+	stayed := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.ID)).Body.Bytes()).Data
 	if stayed.StockedOutOn == nil || *stayed.StockedOutOn != "2026-10-20" || stayed.StockState != "stocked_out" {
 		t.Fatalf("after rejected changes = %+v, want stocked_out 2026-10-20", stayed)
 	}
 }
 
-func recordVehicle(t *testing.T, srv handler, vin, modelID, enteredOn string) vehicleJSON {
+func recordVehicle(t *testing.T, srv handler, vin string, modelID int32, enteredOn string) vehicleJSON {
 	t.Helper()
 	rec := postJSON(t, srv, "/api/v1/vehicles", vehicleBodyJSON(vin, modelID, enteredOn))
 	if rec.Code != http.StatusCreated {
@@ -838,17 +850,17 @@ func recordVehicle(t *testing.T, srv handler, vin, modelID, enteredOn string) ve
 	return decodeVehicle(t, rec.Body.Bytes()).Data
 }
 
-func stockOutVehicle(t *testing.T, srv handler, id, stockedOutOn string) vehicleJSON {
+func stockOutVehicle(t *testing.T, srv handler, id int64, stockedOutOn string) vehicleJSON {
 	t.Helper()
-	rec := postJSON(t, srv, "/api/v1/vehicles/"+id+"/stock-out", `{"stocked_out_on":"`+stockedOutOn+`"}`)
+	rec := postJSON(t, srv, "/api/v1/vehicles/"+addr(id)+"/stock-out", `{"stocked_out_on":"`+stockedOutOn+`"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("stock-out status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	return decodeVehicle(t, rec.Body.Bytes()).Data
 }
 
-func vehicleBodyJSON(vin, modelID, enteredOn string) string {
-	raw, err := json.Marshal(map[string]string{
+func vehicleBodyJSON(vin string, modelID int32, enteredOn string) string {
+	raw, err := json.Marshal(map[string]any{
 		"vin":        vin,
 		"model_id":   modelID,
 		"entered_on": enteredOn,

@@ -10,7 +10,7 @@ PostgreSQL is the system of record ([ADR-0010](../adr/0010-no-object-storage.md)
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `id` | UUID PK | Stable catalog id |
+| `id` | INTEGER identity PK | Catalog address. Seed pins Ford 1, Honda 2, Toyota 3 ([ADR-0011](../adr/0011-integer-addresses.md)) |
 | `name` | TEXT NOT NULL | Unique display name |
 | `created_at` | TIMESTAMPTZ | |
 
@@ -18,8 +18,8 @@ PostgreSQL is the system of record ([ADR-0010](../adr/0010-no-object-storage.md)
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `id` | UUID PK | |
-| `make_id` | UUID NOT NULL FK → `makes.id` | Model belongs to one make |
+| `id` | INTEGER identity PK | Seed pins F-150 1 through Corolla 6 |
+| `make_id` | INTEGER NOT NULL FK → `makes.id` | Model belongs to one make |
 | `name` | TEXT NOT NULL | Unique per make `(make_id, name)` |
 | `created_at` | TIMESTAMPTZ | |
 
@@ -29,9 +29,9 @@ Daily use does not edit the catalog; missing models are added via seed ([ADR-000
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `id` | UUID PK | Opaque API identity ([ADR-0006](../adr/0006-uuid-vehicle-identity.md)) |
+| `id` | BIGINT identity PK | Vehicle address. The API rejects a value above 2^53−1 ([ADR-0011](../adr/0011-integer-addresses.md)) |
 | `vin` | TEXT NOT NULL | Unique across in-stock and stocked-out rows. Shape is in [api-outline.md](api-outline.md) ([ADR-0004](../adr/0004-stocked-out-is-terminal.md)) |
-| `model_id` | UUID NOT NULL FK → `models.id` | No free-text make/model |
+| `model_id` | INTEGER NOT NULL FK → `models.id` | No free-text make/model |
 | `entered_on` | DATE NOT NULL | Inventory age starts here |
 | `stocked_out_on` | DATE NULL | NULL ⇒ in stock; set ⇒ stocked out ([ADR-0005](../adr/0005-stock-state-from-stocked-out-on.md)) |
 | `proposed_action` | TEXT NULL | `price_reduction_planned` \| `wholesale_planned` \| `hold` |
@@ -65,4 +65,4 @@ Aging threshold constant: **90** (document in `constant` + tests).
 
 1. Migrate `makes`, `models`, `vehicles`.
 2. Seed a realistic make/model catalog for demo filters.
-3. Seed demo vehicles from the UTC date at seed time: inventory age 0, 90, and 91, plus one stocked-out vehicle whose stay was longer than 90 days.
+3. Seed demo vehicles from the UTC date at seed time: inventory age 0, 90, and 91, plus one stocked-out vehicle whose stay was longer than 90 days. Those four vehicles are addresses 1 through 4 in that order. Each seed moves its sequence past the highest pinned value, and a skipped value is not reused.

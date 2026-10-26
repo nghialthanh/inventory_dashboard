@@ -1,6 +1,6 @@
 # 09: Record a proposed action on aging stock
 
-**What to build:** On an aging vehicle, the manager sets a proposed action of price reduction planned, wholesale planned, or hold, replaces it, or clears it. Hold is different from having no proposed action. The same change is rejected when the vehicle is not aging stock. After the vehicle stocks out, the last proposed action stays visible and cannot be changed.
+**Decision:** [ADR-0007](../../../docs/adr/0007-separate-commands.md). This file is the acceptance checklist for that decision. Aging stock is the only vehicle that accepts the command.
 
 **Blocked by:** 04 See aging stock, 06 Stock out a vehicle
 

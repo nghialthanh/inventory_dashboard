@@ -6,3 +6,5 @@ Managers need to see which vehicles stocked out on a given day, including today.
 
 - Drop the vehicle on departure. Smaller model, and the stocked-out-on-a-day filter is impossible.
 - Keep a separate departure event log. More machinery than a state and a date on the vehicle.
+
+Accepted in [06](../../.scratch/inventory-dashboard/issues/06-stock-out-a-vehicle.md) and [07](../../.scratch/inventory-dashboard/issues/07-review-departures.md).

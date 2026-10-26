@@ -1,11 +1,11 @@
 export type ApiMake = {
-  id: string;
+  id: number;
   name: string;
 };
 
 export type ApiModel = {
-  id: string;
-  make_id: string;
+  id: number;
+  make_id: number;
   name: string;
 };
 
@@ -23,12 +23,12 @@ export type ApiMeta = {
 };
 
 export type ApiRef = {
-  id: string;
+  id: number;
   name: string;
 };
 
 export type ApiVehicle = {
-  id: string;
+  id: number;
   vin: string;
   make: ApiRef;
   model: ApiRef;

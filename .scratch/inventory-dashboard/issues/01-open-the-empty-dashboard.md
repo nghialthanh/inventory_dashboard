@@ -1,6 +1,6 @@
 # 01: Open the empty dashboard
 
-**What to build:** The manager opens one local address and sees the inventory dashboard shell. The screen and the API share that address. A health check responds. PostgreSQL is running behind the app.
+**Decision:** [ADR-0009](../../../docs/adr/0009-one-origin-under-api.md). This file is the acceptance checklist for that decision.
 
 **Blocked by:** None (can start immediately).
 
