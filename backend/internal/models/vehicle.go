@@ -32,6 +32,7 @@ type StoredVehicle struct {
 	EnteredOn       time.Time
 	StockedOutOn    *time.Time
 	ProposedAction  *string
+	PrimaryImageKey *string
 	HasPrimaryImage bool
 }
 

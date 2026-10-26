@@ -4,10 +4,12 @@ import { listMakes, listModels } from "./api/catalog";
 import {
   correctVehicle,
   createVehicle,
+  deletePrimaryImage,
   getVehicle,
   listVehicles,
   setProposedAction,
   stockOutVehicle,
+  uploadPrimaryImage,
   type CorrectVehicleInput,
   type RecordVehicleInput,
   type SetProposedActionInput,
@@ -80,6 +82,26 @@ export function useSetProposedAction(id: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: SetProposedActionInput) => setProposedAction(id, input),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["vehicles"] });
+    },
+  });
+}
+
+export function useUploadPrimaryImage(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => uploadPrimaryImage(id, file),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["vehicles"] });
+    },
+  });
+}
+
+export function useDeletePrimaryImage(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => deletePrimaryImage(id),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["vehicles"] });
     },

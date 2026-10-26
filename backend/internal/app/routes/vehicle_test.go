@@ -11,9 +11,11 @@ import (
 
 	"inventory_dashboard/internal/app/routes"
 	"inventory_dashboard/internal/logic/catalog"
+	"inventory_dashboard/internal/logic/media"
 	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
 	"inventory_dashboard/pkg/database"
+	"inventory_dashboard/pkg/storage"
 )
 
 func TestRecordedVehicleIsInStockWithAgeZero(t *testing.T) {
@@ -133,7 +135,7 @@ func vehicleServer(t *testing.T, today time.Time) handler {
 	catalogRepo := repositories.NewCatalog(pool)
 	return routes.New(routes.Config{
 		Catalog:  catalog.New(catalogRepo),
-		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, media.NewObjects(storage.NewMemory()), func() time.Time { return today }),
 	})
 }
 

@@ -109,6 +109,21 @@ export async function putJSON<T>(path: string, payload: unknown): Promise<T> {
   return body.data;
 }
 
+export async function putMultipart<T>(path: string, form: FormData): Promise<T> {
+  const response = await fetch(path, {
+    method: "PUT",
+    body: form,
+  });
+  const body = await readEnvelope<T>(response);
+  return body.data;
+}
+
+export async function deleteJSON<T>(path: string): Promise<T> {
+  const response = await fetch(path, { method: "DELETE" });
+  const body = await readEnvelope<T>(response);
+  return body.data;
+}
+
 export async function getList<T>(
   path: string,
 ): Promise<{ items: T[]; meta: ApiMeta }> {

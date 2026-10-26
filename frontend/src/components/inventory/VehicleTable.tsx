@@ -5,6 +5,7 @@ import { useVehicle } from "../../lib/data";
 import { proposedActionLabel } from "../../lib/proposedAction";
 import { AgingBadge } from "./AgingBadge";
 import { CorrectVehicleDialog } from "./CorrectVehicleDialog";
+import { PrimaryImage } from "./PrimaryImage";
 import { ProposedActionControl } from "./ProposedActionControl";
 import { StockOutDialog } from "./StockOutDialog";
 
@@ -151,7 +152,9 @@ function VehicleRows({
         <td className="px-4 py-3">
           {proposedActionLabel(vehicle.proposed_action)}
         </td>
-        <td className="px-4 py-3">{vehicle.has_primary_image ? "Yes" : "No"}</td>
+        <td className="px-4 py-3">
+          <PrimaryImage vehicle={vehicle} compact />
+        </td>
       </tr>
       {open ? (
         <tr>
@@ -218,15 +221,13 @@ function VehicleView({ id }: { id: string }) {
           <dt className="text-[#4e463c]">Proposed action</dt>
           <dd>{proposedActionLabel(row.proposed_action)}</dd>
         </div>
-        <div>
-          <dt className="text-[#4e463c]">Primary image</dt>
-          <dd>{row.has_primary_image ? "Yes" : "No primary image"}</dd>
-        </div>
       </dl>
+      <PrimaryImage vehicle={row} />
       {row.stock_state === "stocked_out" ? (
         <p className="mt-4 text-sm text-[#4e463c]">
           VIN, model, and entered on cannot be corrected because the vehicle is
-          stocked out. The last proposed action stays as recorded.
+          stocked out. The last proposed action stays as recorded. The primary
+          image still loads and cannot be changed.
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">

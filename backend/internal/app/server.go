@@ -15,6 +15,7 @@ import (
 	"inventory_dashboard/internal/app/routes"
 	"inventory_dashboard/internal/logic/catalog"
 	"inventory_dashboard/internal/logic/health"
+	"inventory_dashboard/internal/logic/media"
 	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
 	"inventory_dashboard/pkg/config"
@@ -50,7 +51,7 @@ func Run(ctx context.Context) error {
 		db.Close()
 		return err
 	}
-	media, err := storage.Open(storage.Settings{
+	blobs, err := storage.Open(storage.Settings{
 		Endpoint:  cfg.MinIOEndpoint,
 		AccessKey: cfg.MinIOAccessKey,
 		SecretKey: cfg.MinIOSecretKey,
@@ -61,12 +62,12 @@ func Run(ctx context.Context) error {
 		db.Close()
 		return err
 	}
-	if err := retryErr(ctx, media.EnsureBucket); err != nil {
+	if err := retryErr(ctx, blobs.EnsureBucket); err != nil {
 		db.Close()
 		return err
 	}
 
-	application := &App{db: db, media: media}
+	application := &App{db: db, media: blobs}
 	defer application.Close()
 
 	catalogRepo := repositories.NewCatalog(db)
@@ -74,7 +75,7 @@ func Run(ctx context.Context) error {
 		StaticDir: cfg.StaticDir,
 		Health:    health.New(),
 		Catalog:   catalog.New(catalogRepo),
-		Vehicles:  vehicle.New(repositories.NewVehicles(db), catalogRepo, nil),
+		Vehicles:  vehicle.New(repositories.NewVehicles(db), catalogRepo, media.NewObjects(blobs), nil),
 	})
 	e.Server.ReadHeaderTimeout = 5 * time.Second
 	slog.Info("inventory api listening", "addr", cfg.HTTPAddr, "bucket", application.media.Bucket())

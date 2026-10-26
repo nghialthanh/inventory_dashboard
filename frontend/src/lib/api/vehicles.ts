@@ -1,9 +1,11 @@
 import {
+  deleteJSON,
   getData,
   getList,
   patchJSON,
   postJSON,
   putJSON,
+  putMultipart,
   type ApiVehicle,
 } from "./client";
 
@@ -100,5 +102,27 @@ export function setProposedAction(
   return putJSON<ApiVehicle>(
     `/api/v1/vehicles/${encodeURIComponent(id)}/proposed-action`,
     input,
+  );
+}
+
+export function vehiclePrimaryImageUrl(id: string): string {
+  return `/api/v1/vehicles/${encodeURIComponent(id)}/primary-image`;
+}
+
+export function uploadPrimaryImage(
+  id: string,
+  file: File,
+): Promise<ApiVehicle> {
+  const form = new FormData();
+  form.append("file", file);
+  return putMultipart<ApiVehicle>(
+    `/api/v1/vehicles/${encodeURIComponent(id)}/primary-image`,
+    form,
+  );
+}
+
+export function deletePrimaryImage(id: string): Promise<ApiVehicle> {
+  return deleteJSON<ApiVehicle>(
+    `/api/v1/vehicles/${encodeURIComponent(id)}/primary-image`,
   );
 }

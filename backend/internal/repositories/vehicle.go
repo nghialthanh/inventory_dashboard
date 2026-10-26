@@ -86,6 +86,23 @@ func (v *Vehicles) SetProposedAction(ctx context.Context, id string, proposedAct
 	return nil
 }
 
+// SetPrimaryImageKey stores or clears the primary-image object key.
+func (v *Vehicles) SetPrimaryImageKey(ctx context.Context, id string, key *string) error {
+	tag, err := v.pool.Exec(ctx, `
+		UPDATE vehicles
+		SET primary_image_key = $2,
+			updated_at = now()
+		WHERE id = $1
+	`, id, key)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return apperrors.ErrNotFound
+	}
+	return nil
+}
+
 func vinConflict(err error) error {
 	if err == nil {
 		return nil
@@ -102,7 +119,7 @@ const vehicleSelect = `
 		mk.id::text, mk.name,
 		md.id::text, md.name,
 		v.entered_on, v.stocked_out_on, v.proposed_action,
-		v.primary_image_key IS NOT NULL
+		v.primary_image_key
 	FROM vehicles v
 	JOIN models md ON md.id = v.model_id
 	JOIN makes mk ON mk.id = md.make_id
@@ -211,7 +228,11 @@ func scanVehicle(row scanner) (models.StoredVehicle, error) {
 		&vehicle.EnteredOn,
 		&vehicle.StockedOutOn,
 		&vehicle.ProposedAction,
-		&vehicle.HasPrimaryImage,
+		&vehicle.PrimaryImageKey,
 	)
-	return vehicle, err
+	if err != nil {
+		return vehicle, err
+	}
+	vehicle.HasPrimaryImage = vehicle.PrimaryImageKey != nil && *vehicle.PrimaryImageKey != ""
+	return vehicle, nil
 }

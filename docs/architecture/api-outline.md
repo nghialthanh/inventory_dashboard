@@ -102,9 +102,9 @@ The vehicle starts in stock, with no proposed action and no primary image. `ente
 |--------|------|------|------|
 | POST | `/api/v1/vehicles/:id/stock-out` | `{ "stocked_out_on": "YYYY-MM-DD" }` | **implemented**. First call stocks out. A later call replaces the date. On or after `entered_on`, on or before today. Empty is rejected. Clearing it is a conflict: the departure stands. This is the only way to change `stocked_out_on` |
 | PUT | `/api/v1/vehicles/:id/proposed-action` | `{ "proposed_action": "wholesale_planned" }` | **implemented**. `price_reduction_planned`, `wholesale_planned`, `hold`, or empty to clear. Accepted only while the vehicle is aging stock. After stock-out the stored value remains on read and writes conflict |
-| PUT | `/api/v1/vehicles/:id/primary-image` | multipart field `file` | JPEG, PNG, or WebP, at most 5 MiB. In stock only. Replaces the previous object |
-| DELETE | `/api/v1/vehicles/:id/primary-image` | — | Removes the object and clears the key. In stock only |
-| GET | `/api/v1/vehicles/:id/primary-image` | — | Streams the bytes ([ADR-0008](../adr/0008-api-streams-images.md)). Not found when there is no key or no object. Still streams after stock-out |
+| PUT | `/api/v1/vehicles/:id/primary-image` | multipart field `file` | **implemented**. JPEG, PNG, or WebP, at most 5 MiB. In stock only. Replaces the previous object |
+| DELETE | `/api/v1/vehicles/:id/primary-image` | — | **implemented**. Removes the object and clears the key. In stock only |
+| GET | `/api/v1/vehicles/:id/primary-image` | — | **implemented**. Streams the bytes ([ADR-0008](../adr/0008-api-streams-images.md)). Not found when there is no key or no object. Still streams after stock-out |
 
 ## Static UI
 
