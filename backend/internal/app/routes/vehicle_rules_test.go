@@ -803,6 +803,77 @@ func TestLaterStockOutReplacesTheDateAndClearingIsRejected(t *testing.T) {
 	}
 }
 
+func TestRecordRejectsUnknownCatalogModel(t *testing.T) {
+	srv := vehicleServer(t, time.Date(2026, 10, 26, 0, 0, 0, 0, time.UTC))
+	rec := postJSON(t, srv, "/api/v1/vehicles", vehicleBodyJSON(civicVIN, 999999, "2026-10-26"))
+	assertAPIError(t, rec, http.StatusBadRequest, "VALIDATION_ERROR")
+	var body errorJSON
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Message != "Choose a model from the catalog." {
+		t.Fatalf("message = %q, want Choose a model from the catalog.", body.Message)
+	}
+}
+
+func TestPathIdValidationOnMutations(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+	aging := recordVehicle(t, srv, civicVIN, civicID, "2026-07-27")
+
+	badIDs := []string{"not-a-vehicle", "0", "-1", "1.5", "9223372036854775808"}
+	mutations := []func(id string) *httptest.ResponseRecorder{
+		func(id string) *httptest.ResponseRecorder {
+			return patchJSON(t, srv, "/api/v1/vehicles/"+id, `{"model_id":1}`)
+		},
+		func(id string) *httptest.ResponseRecorder {
+			return postJSON(t, srv, "/api/v1/vehicles/"+id+"/stock-out", `{"stocked_out_on":"2026-10-26"}`)
+		},
+		func(id string) *httptest.ResponseRecorder {
+			return putJSON(t, srv, "/api/v1/vehicles/"+id+"/proposed-action", `{"proposed_action":"hold"}`)
+		},
+	}
+	for _, call := range mutations {
+		for _, id := range badIDs {
+			assertAPIError(t, call(id), http.StatusBadRequest, "VALIDATION_ERROR")
+		}
+		assertAPIError(t, call("999999"), http.StatusNotFound, "NOT_FOUND")
+	}
+
+	kept := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(aging.ID)).Body.Bytes()).Data
+	if kept.Model.ID != civicID || kept.StockState != "in_stock" || kept.ProposedAction != nil {
+		t.Fatalf("aging vehicle changed after rejected mutations: %+v", kept)
+	}
+}
+
+func TestListRejectsBadModelAndMakeAddresses(t *testing.T) {
+	srv := vehicleServer(t, time.Date(2026, 10, 26, 0, 0, 0, 0, time.UTC))
+	for _, param := range []string{"make_id", "model_id"} {
+		for _, raw := range []string{"0", "-1", "2147483648", "1.5", "not-a-number"} {
+			assertAPIError(t, request(t, srv, http.MethodGet, "/api/v1/vehicles?"+param+"="+raw), http.StatusBadRequest, "VALIDATION_ERROR")
+		}
+	}
+}
+
+func TestProposedActionMissingBodyClearsOnAgingStock(t *testing.T) {
+	today := time.Date(2026, 10, 26, 8, 0, 0, 0, time.UTC)
+	srv := vehicleServer(t, today)
+	aging := recordVehicle(t, srv, civicVIN, civicID, "2026-07-27")
+	setProposedAction(t, srv, aging.ID, "hold")
+
+	rec := putJSON(t, srv, "/api/v1/vehicles/"+addr(aging.ID)+"/proposed-action", `{}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("clear via missing field status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	cleared := decodeVehicle(t, rec.Body.Bytes()).Data
+	if cleared.ProposedAction != nil {
+		t.Fatalf("cleared via {} = %v, want none", cleared.ProposedAction)
+	}
+	if !cleared.IsAging || cleared.StockState != "in_stock" {
+		t.Fatalf("after clear = aging %v state %s, want aging in_stock", cleared.IsAging, cleared.StockState)
+	}
+}
+
 func recordVehicle(t *testing.T, srv handler, vin string, modelID int32, enteredOn string) vehicleJSON {
 	t.Helper()
 	rec := postJSON(t, srv, "/api/v1/vehicles", vehicleBodyJSON(vin, modelID, enteredOn))

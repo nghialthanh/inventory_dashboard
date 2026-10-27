@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/labstack/echo/v4"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 
 	"inventory_dashboard/internal/app/routes"
@@ -105,7 +103,6 @@ func Run(ctx context.Context) error {
 		Catalog:   catalog.New(catalogRepo, catalogCache, cfg.CatalogCacheTTL),
 		Vehicles:  vehicle.New(repositories.NewVehicles(db), catalogRepo, ids, nil),
 	})
-	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 	e.Server.ReadHeaderTimeout = 5 * time.Second
 	logger.L().Info("inventory api listening",
 		zap.String("addr", cfg.HTTPAddr),

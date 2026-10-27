@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/labstack/echo/v4"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"inventory_dashboard/api/handlers"
 	"inventory_dashboard/api/middlewares"
@@ -18,7 +19,7 @@ type Config struct {
 	Vehicles  services.Vehicles
 }
 
-// New builds the HTTP server. GET /health is registered outside /api/v1.
+// New builds the HTTP server. GET /health and GET /metrics are registered outside /api/v1.
 func New(cfg Config) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
@@ -26,6 +27,7 @@ func New(cfg Config) *echo.Echo {
 	e.Use(middlewares.Trace(), middlewares.Metrics(), middlewares.AccessLog())
 
 	e.GET("/health", handlers.Health(cfg.Health))
+	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 	v1.Register(e.Group("/api/v1"), cfg.Catalog, cfg.Vehicles)
 	mountStatic(e, cfg.StaticDir)
 	return e

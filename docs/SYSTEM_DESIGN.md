@@ -92,16 +92,16 @@ sequenceDiagram
   participant R as Repository
   participant P as PostgreSQL
 
-  C->>H: GET /api/v1/vehicles?aging=true&page=1
-  H->>L: ListVehicles(filters…)
-  L->>L: Validate filters; compute aging date bound
-  L->>R: Query with filters + paging
-  R->>P: SQL SELECT + COUNT
-  P-->>R: rows + total
+  C->>H: GET /api/v1/vehicles (aging, page)
+  H->>L: ListVehicles with filters
+  L->>L: Validate filters and compute aging date bound
+  L->>R: Query with filters and paging
+  R->>P: SQL SELECT and COUNT
+  P-->>R: rows and total
   R-->>L: stored vehicles
   L->>L: Derive stock_state, inventory_age, is_aging
   L-->>H: page of vehicles
-  H-->>C: envelope { data, meta }
+  H-->>C: envelope with data and meta
 ```
 
 Derived fields are computed in logic, not stored as columns: **in stock** means `stocked_out_on` is null; **aging stock** means in stock and inventory age **> 90** ([ADR-0005](adr/0005-stock-state-from-stocked-out-on.md)).

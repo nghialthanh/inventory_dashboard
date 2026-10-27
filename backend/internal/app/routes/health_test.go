@@ -44,6 +44,35 @@ func TestHealthRespondsOutsideTheVersionedAPI(t *testing.T) {
 	}
 }
 
+func TestMetricsExposesPrometheusText(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<!doctype html><title>Inventory</title>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := routes.New(routes.Config{StaticDir: dir})
+
+	rec := request(t, srv, http.MethodGet, "/metrics")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /metrics status = %d, want 200", rec.Code)
+	}
+	ct := rec.Header().Get("Content-Type")
+	if !strings.Contains(ct, "text/plain") && !strings.Contains(ct, "openmetrics") {
+		t.Fatalf("GET /metrics content-type = %q, want Prometheus text", ct)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "<title>Inventory</title>") {
+		t.Fatal("GET /metrics fell back to the inventory shell")
+	}
+	if !strings.Contains(body, "http_requests_total") && !strings.Contains(body, "# HELP") {
+		t.Fatalf("GET /metrics body missing Prometheus exposition, got %q", body[:min(120, len(body))])
+	}
+
+	versioned := request(t, srv, http.MethodGet, "/api/v1/metrics")
+	if versioned.Code == http.StatusOK && strings.Contains(versioned.Body.String(), "http_requests_total") {
+		t.Fatal("GET /api/v1/metrics returned Prometheus text; metrics belongs on /metrics, outside /api/v1")
+	}
+}
+
 func TestDashboardAndAPIShareOneOrigin(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<!doctype html><title>Inventory</title>"), 0o644); err != nil {
