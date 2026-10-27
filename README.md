@@ -77,26 +77,20 @@ Design-phase summary: [docs/SYSTEM_DESIGN.md §7](docs/SYSTEM_DESIGN.md#7-genai-
 
 ### Strategy for guiding the AI
 
-1. **Lock the vocabulary first** — prompts and reviews use [GLOSSARY.md](GLOSSARY.md) terms only (`aging stock`, `stocked out`, `proposed action`).
-2. **Architecture before code** — ADRs and `docs/architecture/*`; handlers bind/map errors; logic owns rules; repositories own SQL.
-3. **Small, testable slices** — one command or invariant at a time (aging 90 vs 91, terminal stock-out, proposed action only when aging).
-4. **Contract as source of truth** — [api-outline.md](docs/architecture/api-outline.md); UI shaped to DTOs.
+The full loop is [docs/AI_COLLABORATION.md](docs/AI_COLLABORATION.md). In short:
 
-### Verifying and refining output
-
-1. `cd backend && go test ./...` after substantive backend changes.
-2. Assert envelope, `error_code`, and derived fields (`stock_state`, `inventory_age`, `is_aging`).
-3. Fixed UTC clock for aging boundaries.
-4. Update the owning doc in the same change when behavior moves.
-5. Reject ADR drift (free-text make/model, stock-state column, stock-out on PATCH).
+1. **Rails first** — glossary, Cursor rules, architecture, and technical choices (Go, PostgreSQL, one origin) before a feature chat.
+2. **Grill each feature** — the model asks, recommends an answer, and waits. Code starts after the decisions are accepted.
+3. **Issues in `.scratch/`** — one spec and one checklist file per feature. I watch `Status:` and the boxes.
+4. **Key features first** — catalog, record, list, aging, stock-out, correct, proposed action. Logs, metrics, partitions, and Redis come after.
+5. **Test, then check the box** — `cd backend && go test ./...` with a fixed UTC clock. The owning doc updates in the same change.
 
 ### Ensuring final code quality
 
 | Gate | Practice |
 |------|----------|
-| Domain | Tests for age 0 / 90 / 91, stocked-out not aging, duplicate VIN, command isolation |
-| Structure | Composition root in `server.go`; no inventory rules in handlers |
-| Operability | Compose (primary/replica/Redis), `/health`, `/metrics`, graceful shutdown, zap + `trace_id` |
-| Review | Human review of GenAI diffs against glossary, ADRs, and the spec |
-
-GenAI accelerated drafts and scaffolding. **I owned architecture and acceptance**, using ADRs and automated tests as the gate.
+| Domain | Tests for age 0 / 90 / 91, stocked-out vehicles excluded from aging, duplicate VIN, command isolation |
+| Structure | Composition root in `server.go`; handlers bind and map errors |
+| Operability | Compose (primary, replica, Redis), `/health`, `/metrics`, graceful shutdown, zap + `trace_id` |
+| Scale | Monthly `vehicles` partitions; catalog lists read Redis before the replica |
+| Review | Human review of GenAI diffs against the glossary, the ADR, and the `.scratch` checklist |
