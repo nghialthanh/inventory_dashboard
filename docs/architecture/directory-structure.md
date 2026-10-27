@@ -10,12 +10,13 @@ inventory_dashboard/
 ├── GLOSSARY.md
 ├── initial-prompt.md
 ├── docs/
-│   ├── adr/                      # Hard decisions (0001–0011). README.md pairs each with its issue
+│   ├── adr/                      # Hard decisions (0001–0014). README.md pairs each with its issue
 │   └── architecture/             # Living contract
 ├── .cursor/rules/                # Agent coding rules
 ├── backend/                      # Go API (+ serves static UI in Compose)
 ├── frontend/                     # React + TypeScript SPA
-└── docker-compose.yml            # Postgres + API
+├── docker/                       # Postgres primary/replica init scripts
+└── docker-compose.yml            # Postgres primary + replica, Redis, API
 ```
 
 ---
@@ -62,7 +63,8 @@ backend/
 │   │           └── routes.go
 │   ├── common/
 │   │   ├── constant/                    # proposed_action enums, aging threshold
-│   │   └── errors/
+│   │   ├── errors/
+│   │   └── snowflake/                   # mint and decode vehicle addresses (ADR-0013)
 │   ├── dto/
 │   ├── models/
 │   │   ├── catalog.go
@@ -73,17 +75,19 @@ backend/
 │   │   └── vehicles.go
 │   ├── logic/                           # implements services
 │   │   ├── address/                     # parse a catalog or vehicle address
-│   │   ├── catalog/
+│   │   ├── catalog/                     # list + Redis cache-aside (ADR-0014)
 │   │   ├── vehicle/                     # stock-out, patch rules, VIN
 │   │   ├── aging/                       # inventory age + is_aging
 │   │   └── health/
 │   ├── repositories/                    # SQL queries and commands
-│   │   ├── catalog.go
+│   │   ├── catalog.go                   # list on read pool; ModelMakeID on primary
 │   │   └── vehicle.go
 ├── pkg/
+│   ├── cache/                           # Redis client for catalog lists
 │   ├── config/
 │   ├── database/
-│   └── logger/
+│   ├── logger/
+│   └── metrics/                         # Prometheus counters/histograms
 └── …_test.go                            # beside packages
 ```
 

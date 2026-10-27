@@ -3,6 +3,7 @@ import { useState } from "react";
 import { InventoryFilters } from "../components/inventory/InventoryFilters";
 import { RecordVehicleDialog } from "../components/inventory/RecordVehicleDialog";
 import { VehicleTable } from "../components/inventory/VehicleTable";
+import type { AgingFilter } from "../lib/api/vehicles";
 import { useVehicles } from "../lib/data";
 
 export function InventoryPage() {
@@ -12,14 +13,14 @@ export function InventoryPage() {
     "",
   );
   const [stockedOutOn, setStockedOutOn] = useState("");
-  const [agingOnly, setAgingOnly] = useState(false);
+  const [aging, setAging] = useState<AgingFilter>("");
   const [page, setPage] = useState(1);
   const vehicles = useVehicles({
     makeId,
     modelId,
     stockState,
     stockedOutOn,
-    agingOnly,
+    aging,
     page,
   });
   const meta = vehicles.data?.meta ?? { page, page_size: 20, total: 0 };
@@ -47,7 +48,7 @@ export function InventoryPage() {
           modelId={modelId}
           stockState={stockState}
           stockedOutOn={stockedOutOn}
-          agingOnly={agingOnly}
+          aging={aging}
           onMakeId={(next) => {
             setMakeId(next);
             setModelId("");
@@ -65,8 +66,8 @@ export function InventoryPage() {
             setStockedOutOn(next);
             setPage(1);
           }}
-          onAgingOnly={(next) => {
-            setAgingOnly(next);
+          onAging={(next) => {
+            setAging(next);
             setPage(1);
           }}
         />

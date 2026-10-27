@@ -1,25 +1,25 @@
 # Vehicle inventory
 
-How a dealership records the cars it holds, how long they have been held, and what the manager intends to do about aging stock.
+How a distributor records the cars it holds, how long they have been held, and what the manager intends to do about aging stock.
 
 ## Language
 
 ### Identity
 
 **Vehicle**:
-A single physical car the dealership records for sale. Its business identity is its VIN.
+A single physical car the distributor records for sale. Its business identity is its VIN.
 _Avoid_: unit, stock item, car
 
 **VIN**:
-The business identity of a vehicle. No two vehicles share a VIN.
+The manufacturer's business identity of a vehicle. Set when the vehicle is recorded; not changed afterward. No two vehicles share a VIN.
 _Avoid_: stock number, serial number, vehicle address
 
 **Vehicle address**:
-The stable handle that opens one vehicle. It stays the same when the VIN is corrected.
+The stable handle that opens one vehicle.
 _Avoid_: VIN, stock number
 
 **In stock**:
-A vehicle the dealership currently holds for sale.
+A vehicle the distributor currently holds for sale.
 _Avoid_: on hand, available, active
 
 **Stocked out**:

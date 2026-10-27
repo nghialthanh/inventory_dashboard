@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	apperrors "inventory_dashboard/internal/common/errors"
+	"inventory_dashboard/internal/common/snowflake"
 	"inventory_dashboard/internal/models"
 )
 
@@ -24,32 +25,48 @@ func NewVehicles(pool *pgxpool.Pool) *Vehicles {
 	return &Vehicles{pool: pool}
 }
 
-// Insert records an in-stock vehicle. A duplicate VIN is a conflict.
-func (v *Vehicles) Insert(ctx context.Context, vin string, modelID int32, enteredOn time.Time) (int64, error) {
-	var id int64
-	err := v.pool.QueryRow(ctx, `
-		INSERT INTO vehicles (vin, model_id, entered_on)
-		VALUES ($1, $2, $3)
-		RETURNING id
-	`, vin, modelID, enteredOn).Scan(&id)
+// Insert records an in-stock vehicle with a pre-minted address. A duplicate VIN is a conflict.
+func (v *Vehicles) Insert(ctx context.Context, id int64, createdAt time.Time, vin string, modelID int32, enteredOn time.Time) error {
+	tx, err := v.pool.Begin(ctx)
 	if err != nil {
-		return 0, logRepoErr(ctx, "vehicles.Insert", vinConflict(err))
+		return logRepoErr(ctx, "vehicles.Insert.begin", err)
 	}
-	return id, nil
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `
+		INSERT INTO vehicle_vins (vin, vehicle_id)
+		VALUES ($1, $2)
+	`, vin, id)
+	if err != nil {
+		return logRepoErr(ctx, "vehicles.Insert.vin", vinConflict(err))
+	}
+	_, err = tx.Exec(ctx, `
+		INSERT INTO vehicles (id, vin, model_id, entered_on, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $5)
+	`, id, vin, modelID, enteredOn, createdAt.UTC())
+	if err != nil {
+		return logRepoErr(ctx, "vehicles.Insert.row", vinConflict(err))
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return logRepoErr(ctx, "vehicles.Insert.commit", err)
+	}
+	return nil
 }
 
-// Correct changes the VIN, model, or entered on of one vehicle.
-func (v *Vehicles) Correct(ctx context.Context, id int64, vin *string, modelID *int32, enteredOn *time.Time) error {
+// Correct changes the model or entered on of one vehicle.
+func (v *Vehicles) Correct(ctx context.Context, id int64, modelID *int32, enteredOn *time.Time) error {
+	start, end := snowflake.MonthBounds(id)
 	tag, err := v.pool.Exec(ctx, `
 		UPDATE vehicles
-		SET vin = COALESCE($2, vin),
-			model_id = COALESCE($3, model_id),
-			entered_on = COALESCE($4, entered_on),
+		SET model_id = COALESCE($2, model_id),
+			entered_on = COALESCE($3, entered_on),
 			updated_at = now()
-		WHERE id = $1 AND stocked_out_on IS NULL
-	`, id, vin, modelID, enteredOn)
+		WHERE id = $1
+			AND created_at >= $4 AND created_at < $5
+			AND stocked_out_on IS NULL
+	`, id, modelID, enteredOn, start, end)
 	if err != nil {
-		return logRepoErr(ctx, "vehicles.Correct", vinConflict(err))
+		return logRepoErr(ctx, "vehicles.Correct", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return apperrors.ErrNotFound
@@ -59,12 +76,14 @@ func (v *Vehicles) Correct(ctx context.Context, id int64, vin *string, modelID *
 
 // StockOut records or replaces stocked-out on for one vehicle.
 func (v *Vehicles) StockOut(ctx context.Context, id int64, stockedOutOn time.Time) error {
+	start, end := snowflake.MonthBounds(id)
 	tag, err := v.pool.Exec(ctx, `
 		UPDATE vehicles
 		SET stocked_out_on = $2,
 			updated_at = now()
 		WHERE id = $1
-	`, id, stockedOutOn)
+			AND created_at >= $3 AND created_at < $4
+	`, id, stockedOutOn, start, end)
 	if err != nil {
 		return logRepoErr(ctx, "vehicles.StockOut", err)
 	}
@@ -76,12 +95,14 @@ func (v *Vehicles) StockOut(ctx context.Context, id int64, stockedOutOn time.Tim
 
 // SetProposedAction stores or clears the proposed action on one vehicle.
 func (v *Vehicles) SetProposedAction(ctx context.Context, id int64, proposedAction *string) error {
+	start, end := snowflake.MonthBounds(id)
 	tag, err := v.pool.Exec(ctx, `
 		UPDATE vehicles
 		SET proposed_action = $2,
 			updated_at = now()
 		WHERE id = $1
-	`, id, proposedAction)
+			AND created_at >= $3 AND created_at < $4
+	`, id, proposedAction, start, end)
 	if err != nil {
 		return logRepoErr(ctx, "vehicles.SetProposedAction", err)
 	}
@@ -112,9 +133,13 @@ const vehicleSelect = `
 	JOIN makes mk ON mk.id = md.make_id
 `
 
-// Get loads one vehicle by its address.
+// Get loads one vehicle by its address, pruning to the snowflake month.
 func (v *Vehicles) Get(ctx context.Context, id int64) (models.StoredVehicle, error) {
-	row := v.pool.QueryRow(ctx, vehicleSelect+` WHERE v.id = $1`, id)
+	start, end := snowflake.MonthBounds(id)
+	row := v.pool.QueryRow(ctx, vehicleSelect+`
+		WHERE v.id = $1
+			AND v.created_at >= $2 AND v.created_at < $3
+	`, id, start, end)
 	vehicle, err := scanVehicle(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return models.StoredVehicle{}, apperrors.ErrNotFound
@@ -127,14 +152,15 @@ func (v *Vehicles) Get(ctx context.Context, id int64) (models.StoredVehicle, err
 
 // ListFilter narrows the inventory list.
 type ListFilter struct {
-	MakeID        int32
-	ModelID       int32
-	StockState    string
-	StockedOutOn  string
-	AgingOnly     bool
-	EnteredBefore string
-	Limit         int
-	Offset        int
+	MakeID       int32
+	ModelID      int32
+	StockState   string
+	StockedOutOn string
+	// Aging is nil when omitted, true for aging stock only, false for not aging stock.
+	Aging      *bool
+	AgingBound string // calendar day: in stock entered before this day is aging stock
+	Limit      int
+	Offset     int
 }
 
 // List returns a page of vehicles ordered by entered on, then id, and the total.
@@ -192,12 +218,19 @@ func filterSQL(filter ListFilter) (string, []any) {
 		args = append(args, filter.StockedOutOn)
 		where += fmt.Sprintf(" AND v.stocked_out_on = $%d::date", len(args))
 	}
-	if filter.AgingOnly {
-		args = append(args, filter.EnteredBefore)
-		where += fmt.Sprintf(
-			" AND v.stocked_out_on IS NULL AND v.entered_on < $%d::date",
-			len(args),
-		)
+	if filter.Aging != nil {
+		args = append(args, filter.AgingBound)
+		if *filter.Aging {
+			where += fmt.Sprintf(
+				" AND v.stocked_out_on IS NULL AND v.entered_on < $%d::date",
+				len(args),
+			)
+		} else {
+			where += fmt.Sprintf(
+				" AND (v.stocked_out_on IS NOT NULL OR v.entered_on >= $%d::date)",
+				len(args),
+			)
+		}
 	}
 	return where, args
 }

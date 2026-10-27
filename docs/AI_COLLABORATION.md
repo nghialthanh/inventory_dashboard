@@ -174,7 +174,7 @@ I implemented features in the same order as the issue list, with the AI writing 
 
 **Prompt pattern**
 
-> “PATCH only vin / model_id / entered_on while in stock. UUID in path stays. After stock-out → CONFLICT.”
+> “PATCH only model_id / entered_on while in stock. VIN immutable after record. Address in path stays. After stock-out → CONFLICT.”
 
 **Verify**
 

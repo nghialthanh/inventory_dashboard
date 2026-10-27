@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"inventory_dashboard/internal/app/routes"
+	"inventory_dashboard/internal/common/snowflake"
 	"inventory_dashboard/internal/logic/catalog"
 	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
@@ -29,13 +31,13 @@ func TestRecordedVehicleIsInStockWithAgeZero(t *testing.T) {
 		t.Fatalf("create status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	created := decodeVehicle(t, rec.Body.Bytes())
-	if created.Data.ID < 5 {
-		t.Fatalf("vehicle address = %d, want 5 or higher after the demo seed", created.Data.ID)
+	if created.Data.ID == "" || created.Data.ID == demoStockedOutAddress {
+		t.Fatalf("vehicle address = %q, want a minted snowflake distinct from the demo seed", created.Data.ID)
 	}
 	assertInStockToday(t, created)
 
-	got := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.Data.ID)).Body.Bytes())
-	if request(t, srv, http.MethodGet, "/api/v1/vehicles/"+addr(created.Data.ID)).Code != http.StatusOK {
+	got := decodeVehicle(t, request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.Data.ID).Body.Bytes())
+	if request(t, srv, http.MethodGet, "/api/v1/vehicles/"+created.Data.ID).Code != http.StatusOK {
 		t.Fatal("vehicle view status, want 200")
 	}
 	assertInStockToday(t, got)
@@ -67,7 +69,7 @@ func TestRecordedVehicleIsInStockWithAgeZero(t *testing.T) {
 }
 
 type vehicleJSON struct {
-	ID             int64   `json:"id"`
+	ID             string  `json:"id"`
 	VIN            string  `json:"vin"`
 	Make           refJSON `json:"make"`
 	Model          refJSON `json:"model"`
@@ -84,8 +86,11 @@ type refJSON struct {
 	Name string `json:"name"`
 }
 
-func addr(id int64) string {
-	return strconv.FormatInt(id, 10)
+// Fixed seed address for the stocked-out demo vehicle (worker 0).
+const demoStockedOutAddress = "364018611007782915"
+
+func addr(id string) string {
+	return id
 }
 
 type vehicleBody struct {
@@ -133,14 +138,48 @@ func vehicleServer(t *testing.T, today time.Time) handler {
 	if err := resetSchema(ctx, pool); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `TRUNCATE vehicles`); err != nil {
+	truncateVehicles(t, ctx, pool)
+	return newVehicleHandler(t, pool, today)
+}
+
+func truncateVehicles(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
+	t.Helper()
+	if _, err := pool.Exec(ctx, `TRUNCATE vehicles, vehicle_vins`); err != nil {
 		t.Fatalf("truncate vehicles: %v", err)
 	}
-	catalogRepo := repositories.NewCatalog(pool)
+}
+
+func newVehicleHandler(t *testing.T, pool *pgxpool.Pool, today time.Time) handler {
+	t.Helper()
+	ids, err := snowflake.New(0, nil)
+	if err != nil {
+		t.Fatalf("snowflake: %v", err)
+	}
+	catalogRepo := repositories.NewCatalog(pool, nil)
 	return routes.New(routes.Config{
-		Catalog:  catalog.New(catalogRepo),
-		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, func() time.Time { return today }),
+		Catalog:  catalog.New(catalogRepo, nil, 0),
+		Vehicles: vehicle.New(repositories.NewVehicles(pool), catalogRepo, ids, func() time.Time { return today }),
 	})
+}
+
+func insertVehicleRow(t *testing.T, ctx context.Context, pool *pgxpool.Pool, id int64, vin string, modelID int32, enteredOn, stockedOutOn string) {
+	t.Helper()
+	createdAt := snowflake.Time(id)
+	var stocked any
+	if stockedOutOn != "" {
+		stocked = stockedOutOn
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO vehicle_vins (vin, vehicle_id) VALUES ($1, $2)
+	`, vin, id); err != nil {
+		t.Fatalf("insert vehicle_vins: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO vehicles (id, vin, model_id, entered_on, stocked_out_on, created_at, updated_at)
+		VALUES ($1, $2, $3, $4::date, $5, $6, $6)
+	`, id, vin, modelID, enteredOn, stocked, createdAt); err != nil {
+		t.Fatalf("insert vehicle: %v", err)
+	}
 }
 
 func postJSON(t *testing.T, srv handler, path, raw string) *httptest.ResponseRecorder {

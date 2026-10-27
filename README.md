@@ -11,10 +11,11 @@ Dealership **inventory dashboard**: filter vehicles, identify **aging stock** (i
 | Layer | Choice |
 |-------|--------|
 | Backend (assessed) | Golang modular monolith, REST |
-| Logging | zap + `X-Trace-ID` on context through handler → logic → repository |
-| Database | PostgreSQL |
+| Logging / metrics | zap + `X-Trace-ID`; Prometheus `GET /metrics` |
+| Database | PostgreSQL primary + streaming replica (catalog list reads) |
+| Cache | Redis cache-aside for catalog make/model lists ([ADR-0014](docs/adr/0014-catalog-cache-and-read-replica.md)) |
 | Frontend (bonus client) | React + TypeScript |
-| Local run | Docker Compose — API and UI on port 8080 |
+| Local run | Docker Compose — API/UI `:8080`, Postgres `:5432`, replica `:5433`, Redis `:6379` |
 
 ## Where to read
 
@@ -22,23 +23,23 @@ Dealership **inventory dashboard**: filter vehicles, identify **aging stock** (i
 |-----|---------|
 | [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) | Architecture, data flow, tech justifications, observability, GenAI in design |
 | [GLOSSARY.md](GLOSSARY.md) | Domain language |
-| [docs/adr/](docs/adr/) | Hard decisions (0001–0011). The [index](docs/adr/README.md) pairs each decision with the issue that accepted it |
+| [docs/adr/](docs/adr/) | Hard decisions (0001–0014). The [index](docs/adr/README.md) pairs each decision with the issue that accepted it |
 | [docs/architecture/](docs/architecture/) | API outline, schema, directory layout |
 | [docs/api-curl-examples.md](docs/api-curl-examples.md) | Client stub via cURL |
 | [.scratch/inventory-dashboard/spec.md](.scratch/inventory-dashboard/spec.md) | Scenario behavior |
 
 ## Build and run
 
-Docker Compose serves the API and the built screen together on port 8080. PostgreSQL is on port 5432. There is no sign-in.
+Docker Compose serves the API and the built screen together on port 8080, with Postgres primary (`5432`), replica (`5433`), and Redis (`6379`). There is no sign-in.
 
-Addresses are integers ([ADR-0011](docs/adr/0011-integer-addresses.md)). A volume created before that change still has UUID columns. Drop it before starting, then Compose creates the new tables:
+Catalog addresses are integers ([ADR-0011](docs/adr/0011-integer-addresses.md)); vehicle addresses are snowflakes ([ADR-0013](docs/adr/0013-snowflake-vehicle-addresses.md)). Drop Compose volumes before starting after an identity/schema or replication-init change:
 
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-Open http://localhost:8080. Liveness: `GET /health` (outside `/api/v1`).
+Open http://localhost:8080. Liveness: `GET /health`. Metrics: `GET /metrics` (outside `/api/v1`).
 
 Optional UI-only dev (API still from Compose):
 
@@ -48,7 +49,7 @@ cd frontend && npm install && npm run dev
 
 Vite proxies `/api` and `/health` to `http://localhost:8080`. See [frontend/README.md](frontend/README.md).
 
-Optional bulk demo data (idempotent):
+Optional bulk demo data (idempotent; ≥510 vehicles per monthly partition 2026-01…2027-12):
 
 ```bash
 docker compose exec -T postgres psql -U inventory -d inventory < scripts/seed_bulk_vehicles.sql
@@ -95,7 +96,7 @@ Design-phase summary: [docs/SYSTEM_DESIGN.md §7](docs/SYSTEM_DESIGN.md#7-genai-
 |------|----------|
 | Domain | Tests for age 0 / 90 / 91, stocked-out not aging, duplicate VIN, command isolation |
 | Structure | Composition root in `server.go`; no inventory rules in handlers |
-| Operability | Compose, `/health`, graceful shutdown, zap + `trace_id` |
+| Operability | Compose (primary/replica/Redis), `/health`, `/metrics`, graceful shutdown, zap + `trace_id` |
 | Review | Human review of GenAI diffs against glossary, ADRs, and the spec |
 
 GenAI accelerated drafts and scaffolding. **I owned architecture and acceptance**, using ADRs and automated tests as the gate.

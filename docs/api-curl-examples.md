@@ -35,6 +35,7 @@ Save the returned `data.id` as `ID` for later calls.
 ```bash
 curl -s "$BASE/api/v1/vehicles?page=1&page_size=20" | jq .
 curl -s "$BASE/api/v1/vehicles?aging=true&page=1&page_size=20" | jq .
+curl -s "$BASE/api/v1/vehicles?aging=false&page=1&page_size=20" | jq .
 curl -s "$BASE/api/v1/vehicles?stock_state=in_stock&make_id=2" | jq .
 ```
 

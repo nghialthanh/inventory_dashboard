@@ -15,7 +15,7 @@ func AccessLog() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			start := time.Now()
 			err := next(c)
-			if c.Request().Method == "GET" && c.Path() == "/health" {
+			if c.Request().Method == "GET" && (c.Path() == "/health" || c.Path() == "/metrics") {
 				return err
 			}
 			status := c.Response().Status

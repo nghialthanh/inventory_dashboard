@@ -10,24 +10,30 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/labstack/echo/v4"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 
 	"inventory_dashboard/internal/app/routes"
+	"inventory_dashboard/internal/common/snowflake"
 	"inventory_dashboard/internal/logic/catalog"
 	"inventory_dashboard/internal/logic/health"
 	"inventory_dashboard/internal/logic/vehicle"
 	"inventory_dashboard/internal/repositories"
+	"inventory_dashboard/pkg/cache"
 	"inventory_dashboard/pkg/config"
 	"inventory_dashboard/pkg/database"
 	"inventory_dashboard/pkg/logger"
 )
 
-// App is the process: PostgreSQL and the HTTP server.
+// App is the process: PostgreSQL, optional Redis, and the HTTP server.
 type App struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	readDB *pgxpool.Pool
+	redis  *cache.Redis
 }
 
-// Run connects to PostgreSQL, then serves the API and the screen.
+// Run connects to PostgreSQL (and optional Redis), then serves the API and the screen.
 func Run(ctx context.Context) error {
 	cfg, err := config.Load()
 	if err != nil {
@@ -50,19 +56,60 @@ func Run(ctx context.Context) error {
 		return err
 	}
 
-	application := &App{db: db}
+	readDB := db
+	if cfg.DatabaseReadURL != cfg.DatabaseURL {
+		replica, err := retry(ctx, func() (*pgxpool.Pool, error) {
+			return database.Open(ctx, cfg.DatabaseReadURL)
+		})
+		if err != nil {
+			db.Close()
+			return fmt.Errorf("database read url: %w", err)
+		}
+		readDB = replica
+	}
+
+	application := &App{db: db, readDB: readDB}
 	defer application.Close()
 
-	catalogRepo := repositories.NewCatalog(db)
+	var catalogCache catalog.Cache
+	if cfg.RedisURL != "" {
+		rdb, err := retry(ctx, func() (*cache.Redis, error) {
+			r, err := cache.Open(cfg.RedisURL)
+			if err != nil {
+				return nil, err
+			}
+			if err := r.Ping(ctx); err != nil {
+				_ = r.Close()
+				return nil, err
+			}
+			return r, nil
+		})
+		if err != nil {
+			return fmt.Errorf("redis: %w", err)
+		}
+		application.redis = rdb
+		catalogCache = rdb
+		logger.L().Info("catalog cache enabled",
+			zap.Duration("ttl", cfg.CatalogCacheTTL),
+		)
+	}
+
+	ids, err := snowflake.New(cfg.WorkerID, nil)
+	if err != nil {
+		return err
+	}
+	catalogRepo := repositories.NewCatalog(db, readDB)
 	e := routes.New(routes.Config{
 		StaticDir: cfg.StaticDir,
 		Health:    health.New(),
-		Catalog:   catalog.New(catalogRepo),
-		Vehicles:  vehicle.New(repositories.NewVehicles(db), catalogRepo, nil),
+		Catalog:   catalog.New(catalogRepo, catalogCache, cfg.CatalogCacheTTL),
+		Vehicles:  vehicle.New(repositories.NewVehicles(db), catalogRepo, ids, nil),
 	})
+	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 	e.Server.ReadHeaderTimeout = 5 * time.Second
 	logger.L().Info("inventory api listening",
 		zap.String("addr", cfg.HTTPAddr),
+		zap.Duration("shutdown_timeout", cfg.ShutdownTimeout),
 	)
 
 	errCh := make(chan error, 1)
@@ -72,11 +119,13 @@ func Run(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		logger.L().Info("graceful shutdown started")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 		defer cancel()
 		if err := e.Shutdown(shutdownCtx); err != nil {
 			return err
 		}
+		logger.L().Info("graceful shutdown complete")
 		return nil
 	case err := <-errCh:
 		if err == nil || errors.Is(err, http.ErrServerClosed) {
@@ -86,8 +135,14 @@ func Run(ctx context.Context) error {
 	}
 }
 
-// Close releases the database pool.
+// Close releases database pools and Redis.
 func (a *App) Close() {
+	if a.redis != nil {
+		_ = a.redis.Close()
+	}
+	if a.readDB != nil && a.readDB != a.db {
+		a.readDB.Close()
+	}
 	if a.db != nil {
 		a.db.Close()
 	}

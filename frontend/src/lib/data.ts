@@ -37,16 +37,16 @@ export function useVehicles(query: VehicleListQuery) {
   });
 }
 
-export function useVehicle(id: number) {
+export function useVehicle(id: string) {
   return useQuery({
     queryKey: ["vehicles", id],
     queryFn: () => getVehicle(id),
-    enabled: id > 0,
+    enabled: Boolean(id),
     retry: false,
   });
 }
 
-export function useCorrectVehicle(id: number) {
+export function useCorrectVehicle(id: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: CorrectVehicleInput) => correctVehicle(id, input),
@@ -66,7 +66,7 @@ export function useCreateVehicle() {
   });
 }
 
-export function useStockOutVehicle(id: number) {
+export function useStockOutVehicle(id: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: StockOutVehicleInput) => stockOutVehicle(id, input),
@@ -76,7 +76,7 @@ export function useStockOutVehicle(id: number) {
   });
 }
 
-export function useSetProposedAction(id: number) {
+export function useSetProposedAction(id: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: SetProposedActionInput) => setProposedAction(id, input),

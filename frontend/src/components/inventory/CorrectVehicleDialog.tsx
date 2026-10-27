@@ -2,9 +2,9 @@ import { useState, type FormEvent } from "react";
 
 import { ApiError, type ApiVehicle } from "../../lib/api/client";
 import { useCorrectVehicle, useMakes, useModels } from "../../lib/data";
+import type { CorrectVehicleInput } from "../../lib/api/vehicles";
 
 type FieldErrors = {
-  vin?: string;
   model?: string;
   enteredOn?: string;
 };
@@ -12,7 +12,6 @@ type FieldErrors = {
 export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
   const dialogId = `correct-vehicle-${vehicle.id}`;
   const [open, setOpen] = useState(false);
-  const [vin, setVin] = useState(vehicle.vin);
   const [makeId, setMakeId] = useState(String(vehicle.make.id));
   const [modelId, setModelId] = useState(String(vehicle.model.id));
   const [enteredOn, setEnteredOn] = useState(vehicle.entered_on);
@@ -30,9 +29,6 @@ export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
   async function submit(event: FormEvent) {
     event.preventDefault();
     const next: FieldErrors = {};
-    if (vin.trim() === "") {
-      next.vin = "Enter a VIN.";
-    }
     if (modelId === "") {
       next.model = "Choose a model.";
     }
@@ -44,10 +40,7 @@ export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
       return;
     }
 
-    const input: { vin?: string; model_id?: number; entered_on?: string } = {};
-    if (vin.trim() !== vehicle.vin) {
-      input.vin = vin;
-    }
+    const input: CorrectVehicleInput = {};
     if (modelId !== String(vehicle.model.id)) {
       input.model_id = Number(modelId);
     }
@@ -55,7 +48,7 @@ export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
       input.entered_on = enteredOn;
     }
     if (Object.keys(input).length === 0) {
-      setToast("Change the VIN, model, or entered on.");
+      setToast("Change the model or entered on.");
       return;
     }
 
@@ -76,7 +69,6 @@ export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
         type="button"
         className="mt-4 border border-[#1c2b24] px-3 py-1 text-sm text-[#1c2b24]"
         onClick={() => {
-          setVin(vehicle.vin);
           setMakeId(String(vehicle.make.id));
           setModelId(String(vehicle.model.id));
           setEnteredOn(vehicle.entered_on);
@@ -102,14 +94,11 @@ export function CorrectVehicleDialog({ vehicle }: { vehicle: ApiVehicle }) {
               <label className="flex flex-col gap-1 text-sm text-[#4e463c]">
                 VIN
                 <input
-                  className="border border-[#d9d1c3] bg-white px-3 py-2 text-base text-[#1c1915]"
-                  value={vin}
+                  className="border border-[#d9d1c3] bg-[#efe8dc] px-3 py-2 text-base text-[#4e463c]"
+                  value={vehicle.vin}
+                  readOnly
                   autoComplete="off"
-                  onChange={(event) => setVin(event.target.value)}
                 />
-                {errors.vin ? (
-                  <span className="text-[#8a3b2c]">{errors.vin}</span>
-                ) : null}
               </label>
               <label className="flex flex-col gap-1 text-sm text-[#4e463c]">
                 Make

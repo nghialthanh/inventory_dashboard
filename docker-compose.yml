@@ -7,12 +7,54 @@ services:
       POSTGRES_DB: inventory
     ports:
       - "5432:5432"
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - hot_standby=on
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/primary-init.sh:/docker-entrypoint-initdb.d/10-replication.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U inventory -d inventory"]
       interval: 2s
       timeout: 5s
+      retries: 20
+
+  postgres-replica:
+    image: postgres:16-alpine
+    environment:
+      PRIMARY_HOST: postgres
+      PRIMARY_PORT: "5432"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./docker/postgres/replica-entrypoint.sh:/replica-entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/replica-entrypoint.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory -d inventory"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
       retries: 20
 
   api:
@@ -24,16 +66,27 @@ services:
     environment:
       HTTP_ADDR: ":8080"
       DATABASE_URL: postgres://inventory:inventory@postgres:5432/inventory?sslmode=disable
+      DATABASE_READ_URL: postgres://inventory:inventory@postgres-replica:5432/inventory?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      CATALOG_CACHE_TTL: 1h
+      SHUTDOWN_TIMEOUT: 15s
       STATIC_DIR: /app/static
+      WORKER_ID: "0"
     depends_on:
       postgres:
+        condition: service_healthy
+      postgres-replica:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
       interval: 5s
       timeout: 5s
       retries: 20
+    stop_grace_period: 20s
     restart: on-failure
 
 volumes:
   postgres_data:
+  postgres_replica_data:

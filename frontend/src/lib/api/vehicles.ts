@@ -13,12 +13,14 @@ export type ProposedAction =
   | "hold"
   | "";
 
+export type AgingFilter = "" | "true" | "false";
+
 export type VehicleListQuery = {
   makeId: string;
   modelId: string;
   stockState: "" | "in_stock" | "stocked_out";
   stockedOutOn: string;
-  agingOnly: boolean;
+  aging: AgingFilter;
   page: number;
 };
 
@@ -29,7 +31,6 @@ export type RecordVehicleInput = {
 };
 
 export type CorrectVehicleInput = {
-  vin?: string;
   model_id?: number;
   entered_on?: string;
 };
@@ -52,8 +53,8 @@ export function listVehicles(query: VehicleListQuery) {
   if (query.stockedOutOn) {
     params.set("stocked_out_on", query.stockedOutOn);
   }
-  if (query.agingOnly) {
-    params.set("aging", "true");
+  if (query.aging) {
+    params.set("aging", query.aging);
   }
   params.set("page", String(query.page));
   return getList<ApiVehicle>(`/api/v1/vehicles?${params.toString()}`).then(
@@ -61,7 +62,7 @@ export function listVehicles(query: VehicleListQuery) {
   );
 }
 
-export function getVehicle(id: number): Promise<ApiVehicle> {
+export function getVehicle(id: string): Promise<ApiVehicle> {
   return getData<ApiVehicle>(`/api/v1/vehicles/${id}`);
 }
 
@@ -70,14 +71,14 @@ export function createVehicle(input: RecordVehicleInput): Promise<ApiVehicle> {
 }
 
 export function correctVehicle(
-  id: number,
+  id: string,
   input: CorrectVehicleInput,
 ): Promise<ApiVehicle> {
   return patchJSON<ApiVehicle>(`/api/v1/vehicles/${id}`, input);
 }
 
 export function stockOutVehicle(
-  id: number,
+  id: string,
   input: StockOutVehicleInput,
 ): Promise<ApiVehicle> {
   return postJSON<ApiVehicle>(`/api/v1/vehicles/${id}/stock-out`, input);
@@ -88,7 +89,7 @@ export type SetProposedActionInput = {
 };
 
 export function setProposedAction(
-  id: number,
+  id: string,
   input: SetProposedActionInput,
 ): Promise<ApiVehicle> {
   return putJSON<ApiVehicle>(

@@ -23,7 +23,7 @@ func New(cfg Config) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
-	e.Use(middlewares.Trace(), middlewares.AccessLog())
+	e.Use(middlewares.Trace(), middlewares.Metrics(), middlewares.AccessLog())
 
 	e.GET("/health", handlers.Health(cfg.Health))
 	v1.Register(e.Group("/api/v1"), cfg.Catalog, cfg.Vehicles)

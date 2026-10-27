@@ -1,6 +1,7 @@
 package address
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -8,10 +9,10 @@ import (
 )
 
 // Largest integers the API accepts. Catalog addresses fit in a 32-bit integer.
-// A vehicle address stays inside the integers JavaScript stores exactly.
+// Vehicle addresses are full positive int64 snowflakes (JSON strings on the wire).
 const (
 	MaxCatalogID int64 = 2147483647
-	MaxVehicleID int64 = 9007199254740991
+	MaxVehicleID int64 = math.MaxInt64
 )
 
 // Parse reads a positive decimal address up to max. Empty text, a sign, a

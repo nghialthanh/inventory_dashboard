@@ -11,6 +11,7 @@ import (
 
 	"inventory_dashboard/internal/common/constant"
 	apperrors "inventory_dashboard/internal/common/errors"
+	"inventory_dashboard/internal/common/snowflake"
 	"inventory_dashboard/internal/logic/aging"
 	"inventory_dashboard/internal/models"
 	"inventory_dashboard/internal/repositories"
@@ -21,16 +22,17 @@ import (
 type Vehicles struct {
 	repo    *repositories.Vehicles
 	catalog *repositories.Catalog
+	ids     *snowflake.Generator
 	today   func() time.Time
 }
 
 // New binds vehicle rules to the vehicle and catalog repositories.
 // A nil today function uses the process clock.
-func New(repo *repositories.Vehicles, catalog *repositories.Catalog, today func() time.Time) *Vehicles {
+func New(repo *repositories.Vehicles, catalog *repositories.Catalog, ids *snowflake.Generator, today func() time.Time) *Vehicles {
 	if today == nil {
 		today = time.Now
 	}
-	return &Vehicles{repo: repo, catalog: catalog, today: today}
+	return &Vehicles{repo: repo, catalog: catalog, ids: ids, today: today}
 }
 
 // RecordVehicle stores an in-stock vehicle and returns it with derived fields.
@@ -57,8 +59,14 @@ func (v *Vehicles) RecordVehicle(ctx context.Context, vin string, modelID int32,
 			Message: "Choose a model from the catalog.",
 		}
 	}
-	id, err := v.repo.Insert(ctx, normalized, modelID, entered)
+	if v.ids == nil {
+		return models.Vehicle{}, fmt.Errorf("vehicle address minting is not configured")
+	}
+	id, createdAt, err := v.ids.Next()
 	if err != nil {
+		return models.Vehicle{}, err
+	}
+	if err := v.repo.Insert(ctx, id, createdAt, normalized, modelID, entered); err != nil {
 		return models.Vehicle{}, err
 	}
 	logger.FromContext(ctx).Info("recorded vehicle",
@@ -70,8 +78,8 @@ func (v *Vehicles) RecordVehicle(ctx context.Context, vin string, modelID int32,
 	return v.GetVehicle(ctx, strconv.FormatInt(id, 10))
 }
 
-// CorrectVehicle changes a non-empty subset of VIN, model, and entered on.
-func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin *string, modelID *int32, enteredOn *string) (models.Vehicle, error) {
+// CorrectVehicle changes a non-empty subset of model and entered on.
+func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, modelID *int32, enteredOn *string) (models.Vehicle, error) {
 	if v.repo == nil {
 		return models.Vehicle{}, fmt.Errorf("vehicles are not configured")
 	}
@@ -89,16 +97,8 @@ func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin *string, m
 			Message: "The correction is rejected because the vehicle is stocked out.",
 		}
 	}
-	var nextVIN *string
 	var nextModelID *int32
 	var nextEntered *time.Time
-	if vin != nil {
-		normalized, err := NormalizeVIN(*vin)
-		if err != nil {
-			return models.Vehicle{}, err
-		}
-		nextVIN = &normalized
-	}
 	if modelID != nil {
 		if err := AcceptModelID(*modelID); err != nil {
 			return models.Vehicle{}, err
@@ -120,10 +120,10 @@ func (v *Vehicles) CorrectVehicle(ctx context.Context, id string, vin *string, m
 		}
 		nextEntered = &entered
 	}
-	if nextVIN == nil && nextModelID == nil && nextEntered == nil {
+	if nextModelID == nil && nextEntered == nil {
 		return models.Vehicle{}, apperrors.ErrValidation
 	}
-	if err := v.repo.Correct(ctx, parsed, nextVIN, nextModelID, nextEntered); err != nil {
+	if err := v.repo.Correct(ctx, parsed, nextModelID, nextEntered); err != nil {
 		return models.Vehicle{}, err
 	}
 	logger.FromContext(ctx).Info("corrected vehicle",
@@ -260,15 +260,16 @@ func (v *Vehicles) ListVehicles(ctx context.Context, makeID, modelID, stockState
 			return models.VehiclePage{}, apperrors.ErrValidation
 		}
 	}
+	bound := aging.OldestInStockDay(v.today()).Format("2006-01-02")
 	stored, total, err := v.repo.List(ctx, repositories.ListFilter{
-		MakeID:        query.MakeID,
-		ModelID:       query.ModelID,
-		StockState:    query.StockState,
-		StockedOutOn:  query.StockedOutOn,
-		AgingOnly:     query.AgingOnly,
-		EnteredBefore: aging.OldestInStockDay(v.today()).Format("2006-01-02"),
-		Limit:         query.PageSize,
-		Offset:        (query.Page - 1) * query.PageSize,
+		MakeID:       query.MakeID,
+		ModelID:      query.ModelID,
+		StockState:   query.StockState,
+		StockedOutOn: query.StockedOutOn,
+		Aging:        query.Aging,
+		AgingBound:   bound,
+		Limit:        query.PageSize,
+		Offset:       (query.Page - 1) * query.PageSize,
 	})
 	if err != nil {
 		return models.VehiclePage{}, err
@@ -300,7 +301,7 @@ func (v *Vehicles) present(stored models.StoredVehicle) models.Vehicle {
 		stockedOut = &value
 	}
 	return models.Vehicle{
-		ID:             stored.ID,
+		ID:             strconv.FormatInt(stored.ID, 10),
 		VIN:            stored.VIN,
 		Make:           stored.Make,
 		Model:          stored.Model,

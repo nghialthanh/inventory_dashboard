@@ -10,7 +10,7 @@ type Ref struct {
 
 // Vehicle is the list and detail shape.
 type Vehicle struct {
-	ID             int64   `json:"id"`
+	ID             string  `json:"id"`
 	VIN            string  `json:"vin"`
 	Make           Ref     `json:"make"`
 	Model          Ref     `json:"model"`

@@ -13,13 +13,17 @@ flowchart LR
   end
   subgraph compose["Docker Compose — one origin"]
     API[Go API + static UI]
-    PG[(PostgreSQL)]
+    PG[(PostgreSQL primary)]
+    PGR[(PostgreSQL replica)]
+    Redis[(Redis)]
   end
   UI -->|same origin /api| API
   API --> PG
+  API -->|catalog lists| PGR
+  API -->|catalog cache| Redis
 ```
 
-The API serves `/api` and the built screen on one port ([ADR-0009](../adr/0009-one-origin-under-api.md)).
+The API serves `/api` and the built screen on one port ([ADR-0009](../adr/0009-one-origin-under-api.md)). Catalog cache + replica: [ADR-0014](../adr/0014-catalog-cache-and-read-replica.md).
 
 ## Modules
 
@@ -31,6 +35,7 @@ flowchart LR
   HTTP --> IFACE[services interfaces]
   IFACE --> LOGIC[logic]
   LOGIC --> REPO[repositories]
+  LOGIC --> Redis[(Redis)]
   REPO --> PG[(PostgreSQL)]
 ```
 
@@ -38,7 +43,7 @@ flowchart LR
 |-------|---------|------|
 | Adapter | `backend/api` now. Events and third-party clients join it later | Bind the request, map the envelope. No inventory rules |
 | Services | `internal/services` | Interfaces for each feature. No implementation and no SQL |
-| Logic | `internal/logic` | Feature rules. Implements the service interfaces |
+| Logic | `internal/logic` | Feature rules. Implements the service interfaces. Catalog cache-aside lives here |
 | Repository | `internal/repositories` | Queries and commands against PostgreSQL |
 
 `internal/app/server.go` constructs repositories, constructs logic, and passes that logic to the HTTP adapter as the service interfaces.
@@ -63,6 +68,6 @@ flowchart LR
 ## Workflows
 
 1. **Scan** — open the dashboard, filter by make, model, stock state, or aging stock, page the list.
-2. **Record or correct** — create an in-stock vehicle, or correct VIN, model, and entered on while it is in stock.
+2. **Record or correct** — create an in-stock vehicle, or correct model and entered on while it is in stock. VIN is set at record and does not change.
 3. **Act on aging stock** — set, replace, or clear a proposed action. Only aging stock accepts that command.
 4. **Stock out** — record stocked-out on. The row stays, aging stops, and a later call only corrects that date.

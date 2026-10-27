@@ -1,16 +1,17 @@
 import { useMakes, useModels } from "../../lib/data";
+import type { AgingFilter } from "../../lib/api/vehicles";
 
 type InventoryFiltersProps = {
   makeId: string;
   modelId: string;
   stockState: "" | "in_stock" | "stocked_out";
   stockedOutOn: string;
-  agingOnly: boolean;
+  aging: AgingFilter;
   onMakeId: (makeId: string) => void;
   onModelId: (modelId: string) => void;
   onStockState: (stockState: "" | "in_stock" | "stocked_out") => void;
   onStockedOutOn: (stockedOutOn: string) => void;
-  onAgingOnly: (agingOnly: boolean) => void;
+  onAging: (aging: AgingFilter) => void;
 };
 
 export function InventoryFilters({
@@ -18,12 +19,12 @@ export function InventoryFilters({
   modelId,
   stockState,
   stockedOutOn,
-  agingOnly,
+  aging,
   onMakeId,
   onModelId,
   onStockState,
   onStockedOutOn,
-  onAgingOnly,
+  onAging,
 }: InventoryFiltersProps) {
   const makes = useMakes();
   const models = useModels(makeId);
@@ -95,14 +96,17 @@ export function InventoryFilters({
           onChange={(event) => onStockedOutOn(event.target.value)}
         />
       </label>
-      <label className="flex items-center gap-2 pb-2 text-sm text-[#4e463c]">
-        <input
-          type="checkbox"
-          className="size-4 accent-[#1c2b24]"
-          checked={agingOnly}
-          onChange={(event) => onAgingOnly(event.target.checked)}
-        />
-        Aging stock only
+      <label className="flex min-w-44 flex-col gap-1 text-sm text-[#4e463c]">
+        Aging stock
+        <select
+          className="border border-[#d9d1c3] bg-white px-3 py-2 text-base text-[#1c1915]"
+          value={aging}
+          onChange={(event) => onAging(event.target.value as AgingFilter)}
+        >
+          <option value="">All</option>
+          <option value="true">Aging stock only</option>
+          <option value="false">Not aging stock</option>
+        </select>
       </label>
       {failed ? (
         <p

@@ -15,22 +15,29 @@ type ListQuery struct {
 	ModelID      int32
 	StockState   string
 	StockedOutOn string
-	AgingOnly    bool
-	Page         int
-	PageSize     int
+	// Aging is nil when omitted, true for aging stock only, false for not aging stock.
+	Aging    *bool
+	Page     int
+	PageSize int
 }
 
 // ParseList applies paging defaults. Page size above 100 is capped at 100.
-// aging is omitted to leave the filter off. The only accepted value is true.
+// aging is omitted to leave the filter off; true is aging stock only; false is not aging stock.
 // stock_state is omitted to leave the filter off; only in_stock or stocked_out are accepted.
 // stocked_out_on is omitted to leave the filter off; when set it must be YYYY-MM-DD.
 func ParseList(makeID, modelID, stockState, stockedOutOn, aging, pageRaw, sizeRaw string) (ListQuery, error) {
 	query := ListQuery{Page: 1, PageSize: 20}
 	if trimmed := strings.TrimSpace(aging); trimmed != "" {
-		if trimmed != "true" {
+		switch trimmed {
+		case "true":
+			v := true
+			query.Aging = &v
+		case "false":
+			v := false
+			query.Aging = &v
+		default:
 			return ListQuery{}, apperrors.ErrValidation
 		}
-		query.AgingOnly = true
 	}
 	if trimmed := strings.TrimSpace(stockState); trimmed != "" {
 		if trimmed != "in_stock" && trimmed != "stocked_out" {

@@ -28,7 +28,7 @@ export type ApiRef = {
 };
 
 export type ApiVehicle = {
-  id: number;
+  id: string;
   vin: string;
   make: ApiRef;
   model: ApiRef;

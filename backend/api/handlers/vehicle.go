@@ -36,7 +36,6 @@ func RecordVehicle(vehicles services.Vehicles) echo.HandlerFunc {
 }
 
 type correctVehicleRequest struct {
-	VIN       *string `json:"vin"`
 	ModelID   *int32  `json:"model_id"`
 	EnteredOn *string `json:"entered_on"`
 }
@@ -61,7 +60,7 @@ func CorrectVehicle(vehicles services.Vehicles) echo.HandlerFunc {
 		if err != nil {
 			return mapError(c, err)
 		}
-		vehicle, err := vehicles.CorrectVehicle(c.Request().Context(), c.Param("id"), req.VIN, req.ModelID, req.EnteredOn)
+		vehicle, err := vehicles.CorrectVehicle(c.Request().Context(), c.Param("id"), req.ModelID, req.EnteredOn)
 		if err != nil {
 			return mapError(c, err)
 		}

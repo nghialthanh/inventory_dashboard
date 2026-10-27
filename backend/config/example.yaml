@@ -1,3 +1,8 @@
 http_addr: ":8080"
 database_url: "postgres://inventory:inventory@postgres:5432/inventory?sslmode=disable"
+database_read_url: "postgres://inventory:inventory@postgres-replica:5432/inventory?sslmode=disable"
+redis_url: "redis://redis:6379/0"
+catalog_cache_ttl: 1h
+shutdown_timeout: 15s
 static_dir: "/app/static"
+worker_id: 0

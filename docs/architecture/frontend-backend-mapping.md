@@ -7,13 +7,13 @@ Living map of dashboard surfaces → API → hooks. Update a row when a page is 
 | UI surface | User intent | API | Hook (planned) | Status |
 |------------|-------------|-----|----------------|--------|
 | Inventory list | Filter by make and model, and page | `GET /api/v1/vehicles` | `useVehicles(filters)` | implemented |
-| Inventory list | Filter to aging stock only | `GET /api/v1/vehicles?aging=true` | `useVehicles(filters)` | implemented |
+| Inventory list | Filter to aging stock only, or to not aging stock | `GET /api/v1/vehicles?aging=true` / `aging=false` | `useVehicles(filters)` | implemented |
 | Inventory list | Filter by stock state or stocked-out on | `GET /api/v1/vehicles` | `useVehicles(filters)` | implemented |
 | Make filter options | Choose make | `GET /api/v1/catalog/makes` | `useMakes()` | implemented |
 | Model filter options | Choose model for make | `GET /api/v1/catalog/models?make_id=` | `useModels(makeId)` | implemented |
 | Vehicle detail / row expand | Inspect one vehicle | `GET /api/v1/vehicles/:id` | `useVehicle(id)` | implemented |
 | Create vehicle | Add in-stock vehicle | `POST /api/v1/vehicles` | `useCreateVehicle()` | implemented |
-| Correct vehicle | Edit allowed fields while in stock | `PATCH /api/v1/vehicles/:id` | `useCorrectVehicle(id)` | implemented |
+| Correct vehicle | Edit model and entered on while in stock (VIN immutable) | `PATCH /api/v1/vehicles/:id` | `useCorrectVehicle(id)` | implemented |
 | Stock out | Record departure day | `POST /api/v1/vehicles/:id/stock-out` | `useStockOutVehicle(id)` | implemented |
 | Proposed action | Set, replace, or clear on aging stock | `PUT /api/v1/vehicles/:id/proposed-action` | `useSetProposedAction(id)` | implemented |
 

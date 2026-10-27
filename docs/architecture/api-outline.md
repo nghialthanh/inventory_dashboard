@@ -16,7 +16,7 @@ Errors put `error_code` and optional `fields` in `data`. JSON is snake_case.
 
 | `error_code` | HTTP | When |
 |--------------|------|------|
-| `VALIDATION_ERROR` | 400 | Bad dates, VIN, enums, unknown model, illegal filter pair. Also a string, fraction, zero, negative, or non-canonical address, a make or model above 2147483647, or a vehicle address above 9007199254740991 |
+| `VALIDATION_ERROR` | 400 | Bad dates, VIN, enums, unknown model, illegal filter pair. Also a fraction, zero, negative, or non-canonical address; a make or model above 2147483647; or a vehicle address that is not positive decimal text fitting in int64. Vehicle `id` in JSON must be a string |
 | `NOT_FOUND` | 404 | A positive in-range vehicle address that matches no vehicle |
 | `CONFLICT` | 409 | Duplicate VIN; correction after stock-out; clearing `stocked_out_on`; proposed action when the vehicle is not aging stock |
 | `INTERNAL_ERROR` | 500 | Unexpected |
@@ -27,9 +27,15 @@ Errors put `error_code` and optional `fields` in `data`. JSON is snake_case.
 |--------|------|-------------|
 | GET | `/health` | Liveness. Outside `/api/v1`. **implemented** |
 
+## Metrics
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/metrics` | Prometheus text exposition (HTTP RED + catalog cache counters). Outside `/api/v1`. **implemented** |
+
 ## Catalog
 
-Read-only. Seed owns writes ([ADR-0002](../adr/0002-model-catalog.md)).
+Read-only. Seed owns writes ([ADR-0002](../adr/0002-model-catalog.md)). List responses are cache-aside in Redis and fail open to PostgreSQL ([ADR-0014](../adr/0014-catalog-cache-and-read-replica.md)).
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -38,13 +44,13 @@ Read-only. Seed owns writes ([ADR-0002](../adr/0002-model-catalog.md)).
 
 ## Vehicles
 
-Path id is the vehicle address, a positive integer, not the VIN ([ADR-0011](../adr/0011-integer-addresses.md)). Make and model addresses are 32-bit integers. A vehicle address above 9007199254740991 is a validation error.
+Path id is the vehicle address (decimal text snowflake), not the VIN ([ADR-0013](../adr/0013-snowflake-vehicle-addresses.md)). Make and model addresses are 32-bit integers (JSON numbers). The vehicle address is a JSON string.
 
 List and detail share one shape, with embedded make and model:
 
 ```json
 {
-  "id": 5,
+  "id": "364018610995200000",
   "vin": "1HGCM82633A004352",
   "make": { "id": 2, "name": "Honda" },
   "model": { "id": 4, "name": "Civic" },
@@ -68,7 +74,7 @@ List and detail share one shape, with embedded make and model:
 | `make_id` | Filter through the vehicle's model |
 | `model_id` | Filter by model |
 | `stock_state` | `in_stock` or `stocked_out` |
-| `aging` | `true` only. Any other value is a validation error. Omit to leave the filter off |
+| `aging` | `true` (aging stock only) or `false` (not aging stock). Any other value is a validation error. Omit to leave the filter off |
 | `stocked_out_on` | Exact calendar day |
 | `page` | Default 1 |
 | `page_size` | Default 20, maximum 100 |
@@ -93,7 +99,7 @@ The vehicle starts in stock, with no proposed action. `entered_on` is today or e
 
 ### Correct
 
-`PATCH /api/v1/vehicles/:id` — **implemented**. It accepts a non-empty subset of `vin`, `model_id`, and `entered_on` while the vehicle is in stock. The vehicle address stays. The same command on a stocked-out vehicle is a conflict: the correction is rejected because the vehicle is stocked out. This route rejects `proposed_action` and `stocked_out_on`.
+`PATCH /api/v1/vehicles/:id` — **implemented**. It accepts a non-empty subset of `model_id` and `entered_on` while the vehicle is in stock. VIN is immutable after record; a body that includes `vin` is a validation error ([ADR-0012](../adr/0012-vin-immutable.md)). The same command on a stocked-out vehicle is a conflict: the correction is rejected because the vehicle is stocked out. This route rejects `proposed_action` and `stocked_out_on`.
 
 ### Commands
 

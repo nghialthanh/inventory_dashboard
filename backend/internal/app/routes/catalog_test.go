@@ -189,12 +189,12 @@ func catalogServer(t *testing.T) handler {
 		t.Fatalf("reseed: %v", err)
 	}
 	return routes.New(routes.Config{
-		Catalog: catalog.New(repositories.NewCatalog(pool)),
+		Catalog: catalog.New(repositories.NewCatalog(pool, nil), nil, 0),
 	})
 }
 
 func resetSchema(ctx context.Context, pool *pgxpool.Pool) error {
-	if _, err := pool.Exec(ctx, `DROP TABLE IF EXISTS vehicles, models, makes CASCADE`); err != nil {
+	if _, err := pool.Exec(ctx, `DROP TABLE IF EXISTS vehicle_vins, vehicles, models, makes CASCADE`); err != nil {
 		return err
 	}
 	return database.Migrate(ctx, pool)

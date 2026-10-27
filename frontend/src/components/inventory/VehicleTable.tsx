@@ -39,7 +39,7 @@ export function VehicleTable({
   failed,
   onPage,
 }: VehicleTableProps) {
-  const [openId, setOpenId] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   const pageCount = Math.max(1, Math.ceil(meta.total / meta.page_size));
 
   return (
@@ -162,7 +162,7 @@ function VehicleRows({
   );
 }
 
-function VehicleView({ id }: { id: number }) {
+function VehicleView({ id }: { id: string }) {
   const vehicle = useVehicle(id);
   if (vehicle.isError) {
     return (
@@ -219,7 +219,7 @@ function VehicleView({ id }: { id: number }) {
       </dl>
       {row.stock_state === "stocked_out" ? (
         <p className="mt-4 text-sm text-[#4e463c]">
-          VIN, model, and entered on cannot be corrected because the vehicle is
+          Model and entered on cannot be corrected because the vehicle is
           stocked out. The last proposed action stays as recorded.
         </p>
       ) : null}

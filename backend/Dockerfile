@@ -7,6 +7,7 @@ RUN npm run build
 
 FROM golang:1.25-alpine AS api
 WORKDIR /src
+ENV GOTOOLCHAIN=auto
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
